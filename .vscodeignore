@@ -1,0 +1,10 @@
+Reference/**
+src/**
+test/**
+out/test/**
+**/*.map
+tsconfig.json
+node_modules/**
+.vscode/**
+AGENTS.md
+update-extension.ps1

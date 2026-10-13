@@ -1,0 +1,247 @@
+// 自定义编辑器：HexPlusPlus.hexEdit（读写，撤销/重做/保存/备份/磁盘变更检测）与 HexPlusPlus.view（只读）。
+import * as vscode from 'vscode';
+import { FormatId, MemoryImage, parseImage, serializeImage, readBytes, writeBytes } from './formats';
+import { layoutRanges } from './layout';
+import {
+  HexTarget, Selection, defaultSelection, sidePayload, webviewHtml, trackActive, untrack, showWarnings,
+} from './webview';
+import { copySelection } from './copyCmd';
+import { saveAsFormat, exportOptions } from './convert';
+
+export class HexDocument implements vscode.CustomDocument {
+  /** 每次从磁盘整体重载后递增，使旧的撤销/重做闭包失效 */
+  generation = 0;
+  /** 撤销栈位置；与 savedPos 不同即为脏 */
+  pos = 0;
+  savedPos = 0;
+  /** 保存后首次被修改的字节的原值，用于标记"已修改" */
+  baseline = new Map<number, number>();
+  panel?: vscode.WebviewPanel;
+  private ignoreChangeUntil = 0;
+  private readonly disposables: vscode.Disposable[] = [];
+  private readonly onReloadEmitter = new vscode.EventEmitter<void>();
+  readonly onReload = this.onReloadEmitter.event;
+
+  private constructor(readonly uri: vscode.Uri, public image: MemoryImage) {}
+
+  static async create(uri: vscode.Uri, backupId?: string): Promise<HexDocument> {
+    const src = backupId ? vscode.Uri.parse(backupId) : uri;
+    const bytes = await vscode.workspace.fs.readFile(src);
+    const doc = new HexDocument(uri, parseImage(uri.path, bytes));
+    doc.watch();
+    return doc;
+  }
+
+  get dirty() {
+    return this.pos !== this.savedPos;
+  }
+
+  /** 写入并向 webview 推送变化（含每个字节是否仍与保存时不同） */
+  apply(addr: number, data: Uint8Array, notify: boolean) {
+    writeBytes(this.image, addr, data);
+    const flags = Array.from(data, (v, i) => {
+      const base = this.baseline.get(addr + i);
+      return base !== undefined && base !== v;
+    });
+    if (notify) {
+      this.panel?.webview.postMessage({ type: 'update', addr, data, flags });
+    }
+  }
+
+  /** 记录一次编辑并通知 VS Code（进入撤销栈、置脏） */
+  edit(addr: number, after: Uint8Array, notify: boolean, emitter: vscode.EventEmitter<vscode.CustomDocumentEditEvent<HexDocument>>, label: string) {
+    const before = readBytes(this.image, addr, addr + after.length);
+    if (before.length !== after.length) {
+      return; // 跨越空洞，忽略
+    }
+    before.forEach((v, i) => {
+      if (!this.baseline.has(addr + i)) {
+        this.baseline.set(addr + i, v);
+      }
+    });
+    this.apply(addr, after, notify);
+    this.pos++;
+    const gen = this.generation;
+    emitter.fire({
+      document: this,
+      label,
+      undo: () => { if (gen === this.generation) { this.apply(addr, before, true); this.pos--; } },
+      redo: () => { if (gen === this.generation) { this.apply(addr, after, true); this.pos++; } },
+    });
+  }
+
+  async save(target = this.uri, format?: FormatId) {
+    const fmt = format ?? this.image.format;
+    const bytes = serializeImage(this.image, fmt, exportOptions());
+    this.ignoreChangeUntil = Date.now() + 2000;
+    await vscode.workspace.fs.writeFile(target, bytes);
+    if (target.toString() === this.uri.toString()) {
+      this.savedPos = this.pos;
+      this.baseline.clear();
+      this.panel?.webview.postMessage({ type: 'saved' });
+    }
+  }
+
+  async reload() {
+    const bytes = await vscode.workspace.fs.readFile(this.uri);
+    this.image = parseImage(this.uri.path, bytes);
+    this.generation++;
+    this.pos = this.savedPos = 0;
+    this.baseline.clear();
+    this.onReloadEmitter.fire();
+  }
+
+  /** 检测外部程序对文件的修改：未修改时静默重载，有未保存修改时询问 */
+  private watch() {
+    if (this.uri.scheme !== 'file') {
+      return;
+    }
+    const dir = vscode.Uri.joinPath(this.uri, '..');
+    const w = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(dir, this.uri.path.split('/').pop()!));
+    const onChange = async () => {
+      if (Date.now() < this.ignoreChangeUntil) {
+        return;
+      }
+      if (!this.dirty) {
+        await this.reload();
+        this.panel?.webview.postMessage({ type: 'flash', text: '文件已被外部修改，已自动重新加载' });
+        return;
+      }
+      const reload = '重新加载（放弃修改）';
+      const pick = await vscode.window.showWarningMessage(
+        `${this.uri.fsPath} 已被外部程序修改，而编辑器中有未保存的修改。`, reload, '保留我的修改');
+      if (pick === reload) {
+        this.panel?.reveal();
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+      }
+    };
+    this.disposables.push(w, w.onDidChange(onChange), w.onDidCreate(onChange));
+  }
+
+  dispose() {
+    this.disposables.forEach(d => d.dispose());
+    this.onReloadEmitter.dispose();
+  }
+}
+
+/** 另存为时按目标扩展名选择格式；无法识别时保持原格式 */
+export function formatForPath(path: string, fallback: FormatId): FormatId {
+  const ext = (path.match(/\.([^./\\]+)$/)?.[1] ?? '').toLowerCase();
+  if (['hex', 'ihex', 'ihx'].includes(ext)) { return 'ihex'; }
+  if (['srec', 's19', 's28', 's37', 'mot'].includes(ext)) { return 'srec'; }
+  if (ext === 'txt') { return 'titxt'; }
+  if (ext === 'bin') { return 'bin'; }
+  if (['elf', 'out'].includes(ext) && fallback === 'elf') { return 'elf'; }
+  return fallback;
+}
+
+function setupPanel(ctx: vscode.ExtensionContext, doc: HexDocument, panel: vscode.WebviewPanel, editable: boolean,
+  emitter?: vscode.EventEmitter<vscode.CustomDocumentEditEvent<HexDocument>>) {
+  doc.panel = panel;
+  panel.webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(ctx.extensionUri, 'media')] };
+  panel.webview.html = webviewHtml(panel.webview, ctx.extensionUri);
+  const cfg = vscode.workspace.getConfiguration('HexPlusPlus');
+
+  const target: HexTarget = {
+    panel,
+    selection: defaultSelection() as Selection,
+    imageOf: () => doc.image,
+    nameOf: () => doc.uri.path.split('/').pop() ?? '',
+    docUri: doc.uri,
+    fill: emitter && ((start, end, pattern) => {
+      const data = new Uint8Array(end - start).map((_, i) => pattern[i % pattern.length]);
+      doc.edit(start, data, true, emitter, '填充');
+    }),
+  };
+
+  const sendInit = () => panel.webview.postMessage({
+    type: 'init',
+    mode: editable ? 'edit' : 'view',
+    unit: cfg.get('defaultUnit', 1),
+    le: cfg.get('littleEndian', true),
+    readOnly: !editable || cfg.get('readOnlyByDefault', true),
+    sides: [sidePayload(doc.image, doc.uri)],
+    layouts: { all: layoutRanges(doc.image.segments.map(s => ({ start: s.address, end: s.address + s.data.length }))) },
+    edited: [...doc.baseline].filter(([a, v]) => readBytes(doc.image, a, a + 1)[0] !== v).map(([a]) => a),
+  });
+
+  const subs: vscode.Disposable[] = [
+    trackActive(target),
+    doc.onReload(sendInit),
+    panel.webview.onDidReceiveMessage(async m => {
+      switch (m.type) {
+        case 'ready': sendInit(); break;
+        case 'sel': target.selection = m; break;
+        case 'copy': await copySelection(target); break;
+        case 'edit':
+          if (editable && emitter) {
+            doc.edit(m.addr, Uint8Array.from(m.data), false, emitter, '编辑');
+          }
+          break;
+        case 'saveAs': await saveAsFormat(doc.uri, doc.image); break;
+        case 'compareWith': await vscode.commands.executeCommand('HexPlusPlus.compareWith', doc.uri); break;
+        case 'showWarnings': showWarnings(doc.uri.fsPath, doc.image.warnings); break;
+      }
+    }),
+  ];
+  panel.onDidDispose(() => {
+    untrack(target);
+    subs.forEach(d => d.dispose());
+    if (doc.panel === panel) {
+      doc.panel = undefined;
+    }
+  });
+}
+
+export class HexEditorProvider implements vscode.CustomEditorProvider<HexDocument> {
+  static readonly viewType = 'HexPlusPlus.hexEdit';
+  private readonly changeEmitter = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<HexDocument>>();
+  readonly onDidChangeCustomDocument = this.changeEmitter.event;
+
+  constructor(private readonly ctx: vscode.ExtensionContext) {}
+
+  openCustomDocument(uri: vscode.Uri, open: vscode.CustomDocumentOpenContext): Promise<HexDocument> {
+    return HexDocument.create(uri, open.backupId);
+  }
+
+  resolveCustomEditor(doc: HexDocument, panel: vscode.WebviewPanel): void {
+    setupPanel(this.ctx, doc, panel, true, this.changeEmitter);
+  }
+
+  saveCustomDocument(doc: HexDocument): Promise<void> {
+    return doc.save();
+  }
+
+  async saveCustomDocumentAs(doc: HexDocument, target: vscode.Uri): Promise<void> {
+    const fmt = formatForPath(target.path, doc.image.format);
+    if (fmt === 'elf' && !doc.image.elf) {
+      throw new Error('只能从 ELF 文件保存为 ELF');
+    }
+    await doc.save(target, fmt);
+  }
+
+  async revertCustomDocument(doc: HexDocument): Promise<void> {
+    await doc.reload();
+  }
+
+  async backupCustomDocument(doc: HexDocument, ctx: vscode.CustomDocumentBackupContext): Promise<vscode.CustomDocumentBackup> {
+    await vscode.workspace.fs.writeFile(ctx.destination, serializeImage(doc.image, doc.image.format, exportOptions()));
+    return {
+      id: ctx.destination.toString(),
+      delete: () => vscode.workspace.fs.delete(ctx.destination).then(undefined, () => undefined),
+    };
+  }
+}
+
+export class HexViewProvider implements vscode.CustomReadonlyEditorProvider<HexDocument> {
+  static readonly viewType = 'HexPlusPlus.view';
+  constructor(private readonly ctx: vscode.ExtensionContext) {}
+
+  openCustomDocument(uri: vscode.Uri): Promise<HexDocument> {
+    return HexDocument.create(uri);
+  }
+
+  resolveCustomEditor(doc: HexDocument, panel: vscode.WebviewPanel): void {
+    setupPanel(this.ctx, doc, panel, false);
+  }
+}
