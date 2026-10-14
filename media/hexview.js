@@ -25,7 +25,8 @@
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   function asciiOf(v) {
     if (v < 0) return ' ';
-    if ((v >= 0x20 && v < 0x7f) || v >= 0xa0) return esc(String.fromCharCode(v));
+    // 0xAD 是软连字符，渲染宽度为 0，会使 ASCII 列错位
+    if ((v >= 0x20 && v < 0x7f) || (v >= 0xa0 && v !== 0xad)) return esc(String.fromCharCode(v));
     return '.';
   }
   function post(msg) { vscode.postMessage(msg); }

@@ -52,7 +52,8 @@ input:focus, select:focus { outline: 1px solid var(--vscode-focusBorder); outlin
 /* ---------- 主区域 ---------- */
 #main { flex: 1; display: flex; min-height: 0; }
 #overview { width: 14px; flex: none; cursor: pointer; border-right: 1px solid var(--border); }
-#scroller { flex: 1; overflow: auto; outline: none; position: relative; }
+/* 虚拟滚动自行管理 scrollTop，关闭浏览器的滚动锚定，否则重绘行后视图会被自动挪动 */
+#scroller { flex: 1; overflow: auto; outline: none; position: relative; overflow-anchor: none; }
 #sticky { position: sticky; top: 0; left: 0; overflow: hidden; }
 #spacer { width: 1px; }
 
