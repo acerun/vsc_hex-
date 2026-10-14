@@ -52,6 +52,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/vscode": "1.80.0",
+    "@vscode/vsce": "^4.0.0",
     "typescript": "~5.9.0"
   },
   "contributes": {
@@ -128,10 +129,10 @@
         { "command": "HexPlusPlus.copyAs", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
         { "command": "HexPlusPlus.copyOffsetHex", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
         { "command": "HexPlusPlus.copyOffsetDec", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-        { "command": "HexPlusPlus.goTo", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
+        { "command": "HexPlusPlus.goTo", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
         { "command": "HexPlusPlus.selectRange", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
         { "command": "HexPlusPlus.fill", "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/" },
-        { "command": "HexPlusPlus.find", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
+        { "command": "HexPlusPlus.find", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
         { "command": "HexPlusPlus.unit1", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
         { "command": "HexPlusPlus.unit2", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
         { "command": "HexPlusPlus.unit4", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
@@ -145,8 +146,8 @@
       ]
     },
     "keybindings": [
-      { "command": "HexPlusPlus.goTo", "key": "ctrl+g", "mac": "cmd+g", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-      { "command": "HexPlusPlus.find", "key": "ctrl+f", "mac": "cmd+f", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
+      { "command": "HexPlusPlus.goTo", "key": "ctrl+g", "mac": "cmd+g", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
+      { "command": "HexPlusPlus.find", "key": "ctrl+f", "mac": "cmd+f", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
       { "command": "HexPlusPlus.copyAs", "key": "ctrl+alt+c", "mac": "cmd+alt+c", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
       { "command": "HexPlusPlus.unit1", "key": "ctrl+1", "mac": "cmd+1", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
       { "command": "HexPlusPlus.unit2", "key": "ctrl+2", "mac": "cmd+2", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
