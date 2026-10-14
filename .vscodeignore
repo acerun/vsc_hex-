@@ -8,3 +8,7 @@ node_modules/**
 .vscode/**
 AGENTS.md
 update-extension.ps1
+.gitignore
+*.vsix
+images/**
+!images/icon.png

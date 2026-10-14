@@ -2,14 +2,44 @@
   "name": "hexplusplus",
   "displayName": "Hex++",
   "description": "%description%",
-  "version": "0.1.0",
-  "publisher": "hexplusplus",
+  "version": "1.0.0",
+  "publisher": "runm",
   "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1F3A5F",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/acerun/vsc_hex-.git"
+  },
+  "bugs": {
+    "url": "https://github.com/acerun/vsc_hex-/issues"
+  },
+  "homepage": "https://github.com/acerun/vsc_hex-#readme",
+  "keywords": [
+    "hex",
+    "hex editor",
+    "hex viewer",
+    "binary",
+    "compare",
+    "diff",
+    "firmware",
+    "intel hex",
+    "s-record",
+    "srec",
+    "ti-txt",
+    "elf",
+    "embedded",
+    "十六进制"
+  ],
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
   "main": "./out/src/extension.js",
   "activationEvents": [],

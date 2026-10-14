@@ -25,6 +25,7 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
 | `src/convert.ts` `src/copyCmd.ts` `src/extension.ts` `src/webview.ts` | 另存为、复制命令、命令注册、webview 公共部分 |
 | `media/hexview.js` `media/hexview.css` | webview 前端：编辑/查看/对比共用一套虚拟滚动网格 |
 | `test/` | 单元测试（只测纯逻辑，不依赖 vscode） |
+| `images/` | 扩展图标（`icon.svg` 为源文件）与 README 截图（不打入 vsix） |
 | `Reference/` | UI 参考截图与测试固件 `1_PFlash.bin` / `2_PFlash.bin` |
 
 ## 约定
