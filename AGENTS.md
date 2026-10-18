@@ -46,6 +46,7 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
   - 第一个参数必须是字符串字面量；模块顶层常量里不能调用 `l10n.t()`（早于配置执行），需在使用时翻译。
   - 命令标题、配置说明走 `package.nls.json` / `package.nls.zh-cn.json`。
   - `test/l10n.test.ts` 检查：译文齐全、无多余条目、代码中（注释除外）无残留中文。
+  - 文档：`README.md`（英文，插件市场显示）与 `README.zh-CN.md`（中文）内容保持同步，截图 / GIF 共用 `images/`（英文界面、暗色主题）。
 - 补丁 / 加工步骤的字段保存用户输入的原始文本，由扩展侧纯模块解析，出错时抛 `FieldError(field)` 让界面高亮对应输入框。
 - webview CSP 只允许 `cspSource` 样式：HTML 字符串里不能写 `style="..."`，动态样式用 `el.style` 设置。
 - 读写编辑器有两个 viewType（`hexEdit` 匹配 `*`、priority option；`firmware` 匹配固件扩展名、priority default），`package.json` 里限定读写的 `when` 条件用 `/^HexPlusPlus\\.(hexEdit|firmware)$/`。

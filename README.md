@@ -1,59 +1,68 @@
 # Hex++
 
-**面向嵌入式与固件开发的 VS Code 十六进制查看 / 编辑 / 对比工具。** 直接打开 Intel HEX、S-Record、TI-TXT、ELF、BIN 固件，按真实地址显示；两个不同格式的固件也能逐字节对比。
+English | [简体中文](README.zh-CN.md)
 
-*A hex viewer, editor and diff tool for VS Code, built for firmware: open Intel HEX / S-Record / TI-TXT / ELF / BIN files at their real addresses, edit them, convert between formats, and compare two images byte by byte. The UI is in Chinese.*
+**A hex viewer, editor and diff tool for VS Code, built for embedded and firmware development.** Open Intel HEX, S-Record, TI-TXT, ELF and BIN firmware at their real addresses. You can compute CRCs, patch version numbers, merge a bootloader with an app, and compare two firmware images in different formats without leaving the editor.
 
-![Hex++ 查看界面](images/view.png)
+![Hex++ overview: open firmware with a double-click, go to an address, 1/2/4-byte units, endianness, Data Inspector, address gaps](images/overview.gif)
 
-## 功能一览
+## Features
 
-- 📂 **固件格式**：BIN、Intel HEX、S-Record、TI-TXT、ELF，按文件中的真实地址显示，地址空洞一目了然
-- 🔢 **1 / 2 / 4 字节单元**显示，可切换大小端；**数据检查器**同步显示 Int8–64、Float、Double 等数值
-- 🎯 **跳转与查找**：十六进制 / 十进制 / 相对地址跳转；Hex（支持通配符）、文本、正则查找
-- ✏️ **编辑**：覆盖写入、撤销 / 重做、填充选区，保存时保持原格式
-- 📋 **复制为**：C / Go / Java 数组、JSON、Base64、Intel HEX 等 13 种格式，带预览
-- 🔄 **格式互转**：BIN、Intel HEX、S-Record、TI-TXT 任意互转
-- 🧮 **校验**：16 种 CRC 预设（含 STM32 硬件 CRC）与自定义 CRC、Sum8/16/32、MD5 / SHA-1 / SHA-256，随选区实时计算
-- 🩹 **补丁**：把 CRC、版本号、时间戳、序列号写进固件，一次应用、一次撤销
-- 🏭 **固件加工**：合并 Bootloader + App、偏移、裁剪、填充、对齐、写入 CRC、拆分，修改即时预览，方案可导出复用
-- ⚖️ **对比**：不同格式也能按地址对比，只看差异、一键跳到下一个差异，可导出 HTML 报告
+- 📂 **Firmware formats**: BIN, Intel HEX, S-Record, TI-TXT and ELF, shown at their real addresses. Address gaps fold into a single row. Firmware extensions open in Hex++ on double-click.
+- 🔢 **1 / 2 / 4-byte units** with switchable endianness. The **Data Inspector** shows Int8–64, Float, Double and more.
+- 🎯 **Go to and find**: hex, decimal or relative addresses. Hex search with wildcards, text search and regex search.
+- ✏️ **Editing**: overwrite bytes, undo / redo and fill a selection. Files are saved in their original format.
+- 📋 **Copy As**: 13 formats, including C / Go / Java arrays, JSON, Base64 and Intel HEX, each with a preview.
+- 🔄 **Format conversion**: convert between BIN, Intel HEX, S-Record and TI-TXT in any direction.
+- 🧮 **Checksums**: 16 CRC presets (including the STM32 hardware CRC), custom CRC, Sum8/16/32, MD5 / SHA-1 / SHA-256, recomputed live as the selection changes.
+- 🩹 **Patches**: write CRCs, version numbers, timestamps and serial numbers into firmware in one step, and undo them in one step.
+- 🏭 **Firmware processing**: merge bootloader + app, offset, crop, fill, align, write a CRC and split, with a live preview. Recipes can be exported and reused.
+- ⚖️ **Compare**: compare files by address even when their formats differ. Show only the differences, jump between them and export an HTML report.
+- 🌐 **English / 简体中文**: the UI follows the VS Code display language.
 
-## 目录
+## Contents
 
-- [打开文件](#打开文件)
-- [浏览与导航](#浏览与导航)
-- [查找](#查找)
-- [数据检查器](#数据检查器)
-- [编辑](#编辑)
-- [复制](#复制)
-- [另存为 / 格式互转](#另存为--格式互转)
-- [校验和 / CRC / 哈希](#校验和--crc--哈希)
-- [写入补丁](#写入补丁)
-- [固件加工](#固件加工)
-- [对比两个文件](#对比两个文件)
-- [快捷键](#快捷键)
-- [设置](#设置)
-- [支持的格式](#支持的格式)
-- [常见问题](#常见问题)
+- [Quick start](#quick-start)
+- [Opening files](#opening-files)
+- [Browsing and navigation](#browsing-and-navigation)
+- [Find](#find)
+- [Data Inspector](#data-inspector)
+- [Editing](#editing)
+- [Copying](#copying)
+- [Save As / format conversion](#save-as--format-conversion)
+- [Checksum / CRC / hash](#checksum--crc--hash)
+- [Patches](#patches)
+- [Firmware processing](#firmware-processing)
+- [Comparing two files](#comparing-two-files)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Settings](#settings)
+- [Supported formats](#supported-formats)
+- [FAQ](#faq)
 
-## 打开文件
+## Quick start
 
-Hex++ 提供两种打开方式：
+1. Search for **Hex++** in the Extensions view and install it.
+2. Double-click a `.hex`, `.s19`, `.elf` or `.bin` file in the Explorer to open it in Hex++.
+3. Press `Ctrl+G` to go to an address and `Ctrl+F` to find. **Inspector**, **Checksum** and **Patch** on the toolbar open the side panel.
+4. Select two files in the Explorer, then right-click → **Compare Selected (Hex++)** to see the differences.
 
-| 编辑器 | 说明 |
+## Opening files
+
+Hex++ provides two editors:
+
+| Editor | Description |
 | --- | --- |
-| **Hex++ Editor** | 可编辑（默认以只读模式打开，按 `Insert` 切换为读写） |
-| **Hex++ Viewer (read-only)** | 纯只读查看 |
+| **Hex++ Editor** | Editable. Opens read-only by default; press `Insert` to switch to read/write. |
+| **Hex++ Viewer (read-only)** | View only |
 
-打开方法：
+To open a file:
 
-1. 在资源管理器中右键文件，选择 **用 Hex++ 打开**（Open in Hex++）。
-2. 对已经打开的文件：点击编辑器标签右键或命令面板 → **重新打开编辑器的方式…**（Reopen Editor With…）→ 选择 Hex++。
-3. 命令面板（`Ctrl+Shift+P`）→ **Hex++: 用 Hex++ 打开**。
+1. **Double-click** it. `.bin` `.hex` `.ihex` `.ihx` `.srec` `.s19` `.s28` `.s37` `.mot` `.elf` open in the Hex++ Editor by default. `.txt` is not included, so open TI-TXT files manually.
+2. Right-click the file in the Explorer → **Open in Hex++**.
+3. For a file that is already open, right-click its editor tab or use the Command Palette → **Reopen Editor With…** → choose Hex++.
+4. Command Palette (`Ctrl+Shift+P`) → **Hex++: Open in Hex++**.
 
-> 💡 **默认打开方式**：`.bin` `.hex` `.ihex` `.ihx` `.srec` `.s19` `.s28` `.s37` `.mot` `.elf` 双击即用 Hex++ 编辑器打开（`.txt` 不在其中，TI-TXT 需手动选择）。
-> 其他扩展名或想改为只读查看，可在 `settings.json` 中覆盖：
+> 💡 To use Hex++ for other extensions, open a file read-only by default, or go back to the text editor, override the association in `settings.json`:
 >
 > ```json
 > "workbench.editorAssociations": {
@@ -63,99 +72,96 @@ Hex++ 提供两种打开方式：
 > }
 > ```
 >
-> `"default"` 表示改回 VS Code 自带的文本编辑器。
+> `"default"` means VS Code's built-in text editor.
 
-界面组成：
+Layout:
 
-- **工具栏**：单行。左侧为跳转框、1 / 2 / 4 字节单元、字节序、只读 / 读写；右侧为查找、检查器、校验、补丁、比较、另存为、加工。窗口较窄时按钮只显示图标（悬停看说明），再窄才换行。
-- **网格**：左边为地址（`0800_0000` 格式），中间为十六进制，右边为 ASCII。
-- **状态栏**：光标偏移、选区范围与字节数、文件格式、段数、数据大小、地址范围；文件有解析警告时显示 `⚠ N 个解析警告`，点击可查看详情。
+- **Toolbar**: a single row. On the left are the Go to box, the `1` `2` `4` byte units, endianness (`LE` / `BE`) and Read-only / Read/Write. On the right are Find, Inspector, Checksum, Patch, Compare…, Save As… and Process…. When the window is narrow, buttons show only their icons (hover for a tooltip). The toolbar wraps only when that is still too wide.
+- **Grid**: addresses on the left (formatted as `0800_0000`), hex in the middle and ASCII on the right.
+- **Side panel**: Inspector / Checksum / Patch tabs. Drag the panel's left edge to resize it.
+- **Status bar**: cursor offset, selection range and size, file format, segment count, data size and address range. If the file has parse warnings, `⚠ N parse warnings` appears; click it for details.
 
-## 浏览与导航
+## Browsing and navigation
 
-### 字节单元与字节序
+### Byte units and endianness
 
-点击工具栏的 `1` `2` `4`（或按 `Ctrl+1` / `Ctrl+2` / `Ctrl+4`）按 1、2、4 字节为一组显示；点击 `LE` / `BE` 切换小端 / 大端字节序。字节序同时影响 2 / 4 字节单元的显示、数据检查器和鼠标悬停提示。
+Click `1` `2` `4` on the toolbar (or press `Ctrl+1` / `Ctrl+2` / `Ctrl+4`) to group bytes by 1, 2 or 4. Click `LE` / `BE` to switch between little-endian and big-endian. Endianness applies to the 2 / 4-byte display, the Data Inspector and the hover tooltip.
 
-![按 4 字节单元显示](images/unit4.png)
+### Address gaps
 
-### 地址空洞
+In formats with addresses (HEX, S-Record, ELF and so on), address ranges with no data fold into a single row, `··· No data … (N bytes) ···`, so you don't have to scroll past large empty areas. The end of the overview animation at the top shows an example.
 
-带地址的格式（HEX、S-Record、ELF 等）中，没有数据的地址区间会折叠成一行 `··· 无数据 …（N 字节）···`，不必滚过大片空白区域。
+### Go to
 
-![地址空洞](images/gap.png)
+Press `Ctrl+G` (or click the Go to box on the toolbar), type an address and press Enter:
 
-### 跳转
-
-按 `Ctrl+G`（或点击工具栏的跳转框），输入地址后回车：
-
-| 输入 | 含义 |
+| Input | Meaning |
 | --- | --- |
-| `0800_1000`、`08001000`、`0x1000`、`1000h` | 十六进制地址（`_` 会被忽略） |
-| `#4096` | 十进制地址 |
-| `+10`、`-0x20`、`+#16` | 相对当前光标偏移 |
+| `0800_1000`, `08001000`, `0x1000`, `1000h` | Hex address (`_` is ignored) |
+| `#4096` | Decimal address |
+| `+10`, `-0x20`, `+#16` | Relative to the cursor |
 
-右键菜单的 **选择两个偏移量之间的数据…** 可以按起止地址精确选中一段数据。
+To select an exact address range, right-click → **Select Between Offsets...**.
 
-### 鼠标与键盘
+### Mouse and keyboard
 
-- 单击定位光标，拖动或 `Shift+单击` 选择范围。
-- 方向键移动光标，`Shift+方向键` 扩展选区；`PageUp` / `PageDown` 翻页。
-- `Home` / `End` 移到行首 / 行尾，`Ctrl+Home` / `Ctrl+End` 移到数据开头 / 结尾。
-- `Ctrl+A` 全选，`Esc` 取消选区，`Tab` 在十六进制区和 ASCII 区之间切换。
-- 鼠标悬停在字节上会显示该位置作为 u8 / u16 / u32 的值。
+- Click to place the cursor. Drag or `Shift+click` to select a range.
+- Use the arrow keys to move the cursor and `Shift+arrow` to extend the selection. `PageUp` / `PageDown` move one page.
+- `Home` / `End` go to the start / end of the row. `Ctrl+Home` / `Ctrl+End` go to the start / end of the data.
+- `Ctrl+A` selects all, `Esc` clears the selection, and `Tab` switches between the hex and ASCII columns.
+- Hovering over a byte shows its value as u8 / u16 / u32.
 
-## 查找
+## Find
 
-按 `Ctrl+F`（或点击工具栏的 🔍）在网格右上角打开查找框，左侧下拉框选择查找方式：
+Press `Ctrl+F` (or click 🔍 on the toolbar) to open the floating find box in the top-right corner of the grid. Choose the mode from the drop-down on its left:
 
-| 方式 | 示例 | 说明 |
+| Mode | Example | Notes |
 | --- | --- | --- |
-| **Hex** | `DE AD BE EF`、`?? 01 00 08`、`DEADBEEF` | `*` 或 `??` 匹配任意一个字节 |
-| **文本** | `Version` | 按字节匹配 ASCII / Latin-1 文本 |
-| **正则** | `V\d+\.\d+` | JavaScript 正则表达式 |
+| **Hex** | `DE AD BE EF`, `?? 46 00 08`, `DEADBEEF` | `*` or `??` matches any single byte |
+| **Text** | `Version` | Matches ASCII / Latin-1 text byte by byte |
+| **Regex** | `\d+\.\d+\.\d+` | JavaScript regular expression |
 
-- 边输入边查找，大文件中的结果会流式显示，所有命中处高亮。
-- `Enter` / `Shift+Enter`（或 ↓ / ↑ 按钮）跳到下一个 / 上一个结果，查找框显示 `当前/总数`。
-- `Esc` 关闭查找框并清除高亮。
-- `Aa` 按钮切换是否区分大小写（文本、正则方式）。
+- Results update as you type and stream in for large files. Every match is highlighted.
+- `Enter` / `Shift+Enter` (or the ↓ / ↑ buttons) go to the next / previous match. The find box shows `current/total`.
+- `Esc` closes the find box and clears the highlights.
+- The `Aa` button toggles match case (Text and Regex modes).
 
-![Hex 通配查找](images/find.png)
+![Find: hex wildcards, text, regex](images/find.gif)
 
-## 数据检查器
+## Data Inspector
 
-点击工具栏的 **检查器** 打开右侧面板，显示光标处数据按当前字节序解析后的值：Binary、Int8 / Uint8、Int16 / Uint16、Int32 / Uint32、Float、Int64 / Uint64、Double。面板里的数值可以直接选中复制。
+Click **Inspector** on the toolbar to open the side panel. It shows the data at the cursor decoded with the current endianness: Binary, Int8 / Uint8, Int16 / Uint16, Int32 / Uint32, Float, Int64 / Uint64 and Double. You can select and copy any value. The overview animation at the top shows the inspector in use.
 
-（截图见页首）
+## Editing
 
-## 编辑
+1. In the **Hex++ Editor**, press `Insert` (or click the lock button labelled `Read-only` on the toolbar) to switch to `Read/Write`.
+2. Type `0-9` `A-F` in the hex column to overwrite bytes. Click the ASCII column (or press `Tab`) to type characters there. ASCII input requires 1-byte units.
+3. Modified bytes are highlighted in bold until you save.
+4. `Ctrl+Z` / `Ctrl+Y` undo / redo. `Ctrl+S` saves in the **original format**: HEX stays HEX, and ELF is written back in place.
 
-1. 在 **Hex++ Editor** 中按 `Insert`（或点击工具栏的 `只读` 锁形按钮）切换为 `读写`。
-2. 在十六进制区直接输入 `0-9` `A-F` 改写字节；按 `Tab` 切到 ASCII 区可以直接输入字符（需要 1 字节单元）。
-3. 已修改的字节以高亮加粗显示，保存后恢复正常颜色。
-4. `Ctrl+Z` / `Ctrl+Y` 撤销 / 重做，`Ctrl+S` 按**原格式**保存（HEX 仍保存为 HEX，ELF 原位回写）。
+![Editing: overwrite hex and ASCII, fill a selection, undo / redo](images/edit.gif)
 
-![编辑模式](images/edit.png)
+More editing features:
 
-其他编辑能力：
+- **Fill Selection** (`Ctrl+I` or the context menu): enter a byte sequence such as `FF` or `DE AD BE EF`. It repeats to fill the selection.
+- **Hot exit**: unsaved changes are kept when you close VS Code and restored the next time you open it.
+- **External change detection**: if another program changes the file and you have no unsaved changes, Hex++ reloads it. If you do have unsaved changes, it asks whether to discard them and reload.
 
-- **填充选区**（`Ctrl+I` 或右键菜单）：输入字节序列，如 `FF` 或 `DE AD BE EF`，按顺序循环填满选区。
-- **热退出**：未保存的修改在关闭 VS Code 后会被保留，下次打开时恢复。
-- **外部修改检测**：文件被其他程序改写时，如果没有未保存的修改会自动重新加载；如果有，会询问是否放弃修改并重新加载。
+> ⚠️ Hex++ can only **overwrite** existing bytes. It cannot insert or delete bytes, or write into address gaps. This keeps every byte of the firmware at the same address.
 
-> ⚠️ Hex++ 只能**覆盖**已有字节，不能插入或删除字节，也不能在地址空洞处写入。这样可以保证固件中所有数据的地址不变。
+## Copying
 
-## 复制
-
-| 操作 | 说明 |
+| Action | Description |
 | --- | --- |
-| `Ctrl+C` | 按当前显示的样子复制（随 1 / 2 / 4 字节单元和字节序变化），默认格式可在设置中修改 |
-| `Ctrl+Alt+C` 复制为… | 弹出格式列表，每项下方显示预览，上次用过的格式排在第一位 |
-| 右键 → 复制偏移量 | 复制光标地址，十六进制（`0x08000400`）或十进制 |
+| `Ctrl+C` | Copies what is displayed, following the 1 / 2 / 4-byte unit and endianness. The default format can be changed in settings. |
+| `Ctrl+Alt+C` Copy As… | Shows a list of formats, each with a preview. The last format you used is listed first. |
+| Right-click → Copy Offset | Copies the cursor address in hex (`0x08000400`) or decimal |
 
-“复制为”支持的格式（以 `00 01 02 FF` 为例）：
+![Copy As a C array](images/copy.gif)
 
-| 格式 | 输出 |
+Copy As formats, using `00 01 02 FF` as an example:
+
+| Format | Output |
 | --- | --- |
 | Hex Octets | `00 01 02 FF` |
 | Hex | `000102FF` |
@@ -165,157 +171,167 @@ Hex++ 提供两种打开方式：
 | Java | `byte data[] = { 0x00, 0x01, 0x02, (byte) 0xFF };` |
 | JSON | `[0, 1, 2, 255]` |
 | Base64 | `AAEC/w==` |
-| UTF-8 | 按 UTF-8 解码的原始文本 |
-| Intel HEX / S-Record / TI-TXT | 带选区真实地址的记录，可直接粘贴为一个小固件 |
+| UTF-8 | The bytes decoded as UTF-8 text |
+| Intel HEX / S-Record / TI-TXT | Records at the selection's real addresses, ready to paste as a small firmware file |
 
-C / Go / Java 数组的变量名取自文件名。
+C / Go / Java array names are taken from the file name.
 
-## 另存为 / 格式互转
+## Save As / format conversion
 
-点击工具栏的 **另存为…**，或在资源管理器中右键文件 → **另存为 / 转换格式…**：
+Click **Save As…** on the toolbar, or right-click a file in the Explorer → **Save As / Convert Format...**:
 
-1. 选择目标格式：Binary、Intel HEX、Motorola S-Record、TI-TXT（源文件是 ELF 时还可以选 ELF）。
-2. **BIN → 带地址格式**：BIN 文件不含地址信息，会询问起始地址，例如 `0x08000000`。
-3. **带地址格式 → BIN**：BIN 从第一个数据段的地址开始（该地址对应文件偏移 0），地址空洞用填充字节（默认 `0xFF`，可在设置中修改）补齐，完成后会提示起始地址和填充了几处空洞。
-4. 选择保存位置后，可以直接用 Hex++ 打开结果文件。
+1. Choose the target format: Binary, Intel HEX, Motorola S-Record or TI-TXT. ELF is also offered when the source is ELF.
+2. **BIN → a format with addresses**: BIN has no address information, so you are asked for a start address, such as `0x08000000`.
+3. **A format with addresses → BIN**: the BIN starts at the address of the first segment, which becomes file offset 0. Gaps are filled with the fill byte (default `0xFF`, configurable in settings). When the conversion finishes, a message shows the start address and how many gaps were filled.
+4. After you choose where to save, you can open the result in Hex++ right away.
 
-从编辑器中另存时，**会包含尚未保存的修改**。
+Save As from an editor **includes unsaved changes**.
 
-## 校验和 / CRC / 哈希
+## Checksum / CRC / hash
 
-点击工具栏的 **校验**（或右键 → **校验和 / CRC / 哈希**），右侧面板显示计算结果：
+Click **Checksum** on the toolbar (or right-click → **Checksum / CRC / Hash**). The results appear in the side panel:
 
-- **范围**：`选区`（没有选区时按全部计算）/ `全部` / `自定义`。自定义的结束地址包含在内，也可以写 `+长度`，如 `+8000`（十六进制，`+#4096` 为十进制）。
-- **空洞**：`填充` 时按填充字节参与计算（与 `srec_cat -fill` 一致），`跳过` 时只算有数据的字节。
-- **算法**：点 **算法 ▾** 勾选要显示的算法，选择会被记住。
-  - CRC：CRC-8、CRC-8/MAXIM、CRC-8/SAE-J1850、CRC-8/AUTOSAR、CRC-16/CCITT-FALSE、CRC-16/XMODEM、CRC-16/KERMIT、CRC-16/MODBUS、CRC-16/ARC、CRC-16/USB、CRC-32、CRC-32/MPEG-2、CRC-32/STM32、CRC-32C、CRC-32/BZIP2、CRC-32/AUTOSAR，以及**自定义 CRC**（宽度、多项式、初值、结果异或、输入 / 输出反转）
-  - 校验和：Sum8、Sum8 补码、XOR8、Sum16、Sum32、16 / 32 位字之和（随字节序）
-  - 哈希：MD5、SHA-1、SHA-256
-- **CRC-32/STM32** 对应 STM32 硬件 CRC 外设的默认配置：按小端 32 位字从内存取数，结果与 `HAL_CRC_Calculate` 一致。
+- **Range**: `Selection` (all data when nothing is selected), `All` or `Custom`. A custom end address is inclusive; you can also enter `+length`, such as `+8000` (hex) or `+#4096` (decimal).
+- **Gaps**: `Fill` includes gaps as the fill byte (the same as `srec_cat -fill`). `Skip` uses only the bytes that contain data.
+- **Algorithms**: click **Algorithm ▾** to choose which ones are shown. Your choice is remembered.
+  - CRC: CRC-8, CRC-8/MAXIM, CRC-8/SAE-J1850, CRC-8/AUTOSAR, CRC-16/CCITT-FALSE, CRC-16/XMODEM, CRC-16/KERMIT, CRC-16/MODBUS, CRC-16/ARC, CRC-16/USB, CRC-32, CRC-32/MPEG-2, CRC-32/STM32, CRC-32C, CRC-32/BZIP2, CRC-32/AUTOSAR, and a **custom CRC** (width, polynomial, init, XOR out, reflect input / output)
+  - Checksums: Sum8, Sum8 two's complement, XOR8, Sum16, Sum32, and sums of 16 / 32-bit words (using the current endianness)
+  - Hashes: MD5, SHA-1, SHA-256
+- **CRC-32/STM32** matches the default configuration of the STM32 hardware CRC peripheral: it reads memory as little-endian 32-bit words, and the result matches `HAL_CRC_Calculate`.
 
-点击结果即可复制；点 **写入…** 会以该算法和范围新建一个补丁。对比视图中也可计算当前一侧的校验。
+Click a result to copy it. Click **Write…** to create a patch with that algorithm and range (see the next section). The comparison view can also compute checksums for the current side.
 
-## 写入补丁
+![Checksum: live results for the selection, a custom range, one-click CRC patch](images/checksum.gif)
 
-点击工具栏的 **补丁**，把计算出的值写回固件：
+## Patches
 
-| 类型 | 说明 |
+Click **Patch** on the toolbar to write computed values back into the firmware:
+
+| Type | Description |
 | --- | --- |
-| 校验值 | 对指定范围计算 CRC / 校验和 / 哈希后写入，数值型可选字节序 |
-| 数值 | u8 / u16 / u32 常量，十进制或 `0x` 十六进制，负数按补码 |
-| 序列号 | 同数值，每次应用成功后按步长自动递增 |
-| 时间戳 | Unix 秒（u32）、BCD（`YYYYMMDDhhmmss`，7 字节）或文本模板（如 `YYYY-MM-DD hh:mm:ss`） |
-| 文本 | UTF-8 字符串，可设固定长度（不足补 `00`） |
-| 字节序列 | 任意十六进制字节，如 `DE AD BE EF` |
+| Checksum value | Computes a CRC / checksum / hash over a range and writes it. Numeric results can use either byte order. |
+| Value | A u8 / u16 / u32 constant in decimal or `0x` hex. Negative numbers are written as two's complement. |
+| Serial number | Like Value, but increments by the step after each successful apply |
+| Timestamp | Unix seconds (u32), BCD (`YYYYMMDDhhmmss`, 7 bytes) or a text template (such as `YYYY-MM-DD hh:mm:ss`) |
+| Text | A UTF-8 string, optionally with a fixed length (padded with `00`) |
+| Byte sequence | Any hex bytes, such as `DE AD BE EF` |
 
-- 每个补丁下方实时显示将写入的地址和字节；地址有误、落在空洞中或数值越界时直接标红。
-- 补丁**按列表顺序**写入，后面的校验值能算进前面写入的版本号等数据。如果校验值补丁之后的补丁又改了校验范围内的数据，会给出提示。
-- **应用补丁**（`Ctrl+Enter`）一次写入全部启用的补丁，`Ctrl+Z` 一次撤销；只读模式下会先询问是否切换为读写。
-- 补丁方案按文件自动保存，可 **导出 / 导入** 为 JSON，与同事共享。
+- Each patch shows the address and bytes it will write as you edit it. An invalid address, an address in a gap, or an out-of-range value is marked in red.
+- Patches are written **in list order**, so a checksum can include data written by earlier patches, such as a version number. If a patch after a checksum patch changes data inside the checksum range, you get a warning.
+- **Apply patches** (`Ctrl+Enter`) writes all enabled patches at once, and one `Ctrl+Z` undoes them all. In read-only mode, Hex++ first asks whether to switch to read/write.
+- The patch list is saved per file automatically. Use **Export / Import** to share it as JSON.
 
-## 固件加工
+## Firmware processing
 
-在资源管理器中选中一个或多个文件右键 → **固件加工…**，或点编辑器工具栏的 **加工…**（会带上未保存的修改），打开加工面板：
+Select one or more files in the Explorer and right-click → **Firmware Processing (Merge / Offset / Crop / Fill / Split)...**, or click **Process…** on the editor toolbar (this includes unsaved changes). The processing panel opens:
 
-1. **输入文件**：可添加多个文件，按地址合并（如 Bootloader + App）。每个文件可设偏移；BIN 文件的偏移就是加载地址。地址重叠时可选择报错、后者覆盖或前者优先。
-2. **处理步骤**：按顺序执行，可停用、调整顺序。
-   - 地址偏移、移动到地址、裁剪（保留范围）、删除范围
-   - 填充：只填空洞或覆盖整个范围
-   - 段对齐：段首尾扩展到 N 字节边界（如扇区大小）
-   - 写入补丁：与上面的补丁相同，如在末尾写入 CRC-32
-3. **结果预览**：地址分布图（大段空洞会被压缩显示）、段列表、总大小与 CRC-32，任何修改都即时刷新。
-4. **输出**：Intel HEX / S-Record / TI-TXT / BIN；可不拆分、每段一个文件、按大小（按扇区边界对齐）或按地址拆分。
+1. **Input files**: add several files to merge them by address (for example, bootloader + app). Each file can have an offset; for a BIN file, the offset is its load address. When addresses overlap, choose Error, Later overwrites or Earlier wins.
+2. **Steps**: run in order, and can be disabled or reordered.
+   - Address offset, Move to address, Crop (keep range), Delete range
+   - Fill: fill only the gaps, or overwrite the whole range
+   - Align segments: extend each segment's start and end to an N-byte boundary (such as the sector size)
+   - Write patch: the same patches as above, such as a CRC-32 at the end
+3. **Result preview**: an address map (large gaps are drawn compressed), the segment list, the total size and the CRC-32. It refreshes immediately after any change.
+4. **Output**: Intel HEX, S-Record, TI-TXT or BIN. Write a single file, one file per segment, split by size (aligned to sector boundaries) or split at given addresses.
 
-**导出方案** 会把输入、步骤和输出设置保存为 `.hexpp.json`（路径相对方案文件），之后 **导入方案** 即可一键重做，适合纳入版本管理。
+![Firmware processing: merge bootloader + app, fill the gaps, write a CRC-32 at the end](images/process.gif)
 
-## 对比两个文件
+**Export recipe** saves the inputs, steps and output settings as `.hexpp.json`, with paths relative to the recipe file. **Import recipe** repeats the whole job in one click, which also makes the recipe easy to keep under version control.
 
-### 打开对比
+## Comparing two files
 
-- 在资源管理器中**选中两个文件** → 右键 → **比较所选文件 (Hex++)**。
-- 右键单个文件 → **与...比较 (Hex++)**，再选择另一个文件。
-- 在 Hex++ 编辑器中点击工具栏的 **比较…**。
-- 命令面板 → **Hex++: 比较两个文件...**。
+To open the comparison view:
 
-两个文件可以是**不同格式**，例如 `.hex` 与 `.elf`、`.s19` 与 `.bin`。Hex++ 会按地址逐字节比较：值不同、或一侧有数据另一侧是空洞，都算作差异。
+- Select two files in the Explorer, then right-click → **Compare Selected (Hex++)**.
+- Right-click one file → **Compare With... (Hex++)**, then choose the other file.
+- Click **Compare…** on the Hex++ editor toolbar.
+- Command Palette → **Hex++: Compare Two Files...**.
 
-![对比视图](images/compare.png)
+The two files can be in **different formats**, such as `.hex` and `.elf`, or `.s19` and `.bin`. Hex++ compares them byte by byte by address. A byte counts as different if the values differ, or if one side has data and the other side has a gap.
 
-### 对比视图
+![Compare: .hex vs .s19 by address, differences only, F8 to jump](images/compare.gif)
 
-- 每侧顶部显示文件名、修改时间和文件大小，差异字节标红，差异所在行的地址也标红。
-- 左侧**概览条**用红色标出所有差异的位置，点击或拖动可以快速跳转。
-- **✱ 全部 / ≠ 差异**：“差异”视图只保留每处差异前后 64 字节，相同的大片区域（≥ 256 字节）折叠成一行 `⊞ 已折叠 … 字节相同`，点击折叠行即可展开到该位置。
-- **↓ 下一个**（`F8`）/ **↑ 上一个**（`Shift+F8`）：逐个浏览差异块，工具栏显示 `差异 当前/总数 · 差异字节数`。
-- **⇄ 交换**左右两侧，**⟳ 重载**（`F5`）重新读取磁盘上的文件。
-- 跳转、查找、1 / 2 / 4 字节单元、复制等功能与单文件视图相同。
+### Comparison view
 
-![只看差异](images/comparediff.png)
+- The top of each side shows the file name, modification time and file size. Differing bytes, and the addresses of rows that contain them, are shown in red.
+- The **overview bar** on the left marks every difference in red. Click or drag it to jump.
+- **All / Differences**: the Differences view keeps only 64 bytes before and after each difference. Large identical regions (≥ 256 bytes) fold into a row, `⊞ Folded … identical bytes`; click it to expand.
+- **↓ Next** (`F8`) / **↑ Previous** (`Shift+F8`) step through the difference blocks. The toolbar shows `Difference current/total · N bytes`.
+- **Swap** exchanges the left and right sides. **Reload** (`F5`) reads both files from disk again.
+- Go to, Find, 1 / 2 / 4-byte units, the Data Inspector, Checksum and copying work as in the single-file view.
 
-### 导出 HTML 报告
+### Exporting an HTML report
 
-点击 **导出报告**，生成一个独立的 HTML 文件，包含两个文件的信息、差异统计，以及每处差异附近的数据（相同区域自动折叠），方便存档或发给同事。
+Click **Export report** to create a standalone HTML file. It contains information about both files, difference statistics and the data around each difference, with identical regions folded. You can archive it or send it to a colleague.
 
-![HTML 对比报告](images/report.png)
+![HTML comparison report](images/report.png)
 
-## 快捷键
+## Keyboard shortcuts
 
-| 快捷键 | 功能 | 适用 |
+| Shortcut | Action | Where |
 | --- | --- | --- |
-| `Ctrl+G` | 跳转到地址 | 编辑器 / 对比 |
-| `Ctrl+F` | 查找 | 编辑器 / 对比 |
-| `Ctrl+1` / `Ctrl+2` / `Ctrl+4` | 按 1 / 2 / 4 字节显示 | 编辑器 / 对比 |
-| `Ctrl+C` | 复制 | 编辑器 / 对比 |
-| `Ctrl+Alt+C` | 复制为… | 编辑器 |
-| `Insert` | 切换只读 / 读写 | 编辑器 |
-| `Ctrl+I` | 填充选区 | 编辑器（读写） |
-| `Ctrl+Enter` | 应用补丁（焦点在补丁面板时） | 编辑器 |
-| `Ctrl+Z` / `Ctrl+Y` / `Ctrl+S` | 撤销 / 重做 / 保存 | 编辑器 |
-| `F8` / `Shift+F8` | 下一个 / 上一个差异 | 对比 |
-| `F5` | 重新加载 | 对比 |
+| `Ctrl+G` | Go to address | Editor / Compare |
+| `Ctrl+F` | Find | Editor / Compare |
+| `Ctrl+1` / `Ctrl+2` / `Ctrl+4` | Display 1 / 2 / 4-byte units | Editor / Compare |
+| `Ctrl+C` | Copy | Editor / Compare |
+| `Ctrl+Alt+C` | Copy As… | Editor |
+| `Insert` | Toggle Read-only / Read/Write | Editor |
+| `Ctrl+I` | Fill selection | Editor (read/write) |
+| `Ctrl+Enter` | Apply patches (when the Patch panel has focus) | Editor |
+| `Ctrl+Z` / `Ctrl+Y` / `Ctrl+S` | Undo / Redo / Save | Editor |
+| `F8` / `Shift+F8` | Next / previous difference | Compare |
+| `F5` | Reload | Compare |
 
-macOS 上将 `Ctrl` 换成 `Cmd`。
+On macOS, use `Cmd` instead of `Ctrl`.
 
-## 设置
+## Settings
 
-| 设置项 | 默认值 | 说明 |
+| Setting | Default | Description |
 | --- | --- | --- |
-| `HexPlusPlus.defaultUnit` | `1` | 默认显示单元（1、2 或 4 字节） |
-| `HexPlusPlus.littleEndian` | `true` | 2 / 4 字节单元与数据检查器按小端解释 |
-| `HexPlusPlus.readOnlyByDefault` | `true` | Hex++ Editor 打开时默认只读（`Insert` 切换） |
-| `HexPlusPlus.copy.defaultFormat` | `displayed` | `Ctrl+C` 使用的格式；`displayed` 表示按当前显示复制，也可设为 `hex`、`c`、`base64`、`ihex` 等 |
-| `HexPlusPlus.export.fillByte` | `255`（`0xFF`） | 导出 BIN 时用于填充地址空洞的字节 |
-| `HexPlusPlus.export.recordLength` | `16` | 导出 Intel HEX / S-Record / TI-TXT 时每条记录的数据字节数（16 或 32） |
+| `HexPlusPlus.defaultUnit` | `1` | Default display unit (1, 2 or 4 bytes) |
+| `HexPlusPlus.littleEndian` | `true` | Interpret 2 / 4-byte units and Data Inspector values as little-endian |
+| `HexPlusPlus.readOnlyByDefault` | `true` | Open the Hex++ Editor read-only (toggle with `Insert`) |
+| `HexPlusPlus.copy.defaultFormat` | `displayed` | Format used by `Ctrl+C`. `displayed` copies exactly what is shown; other values include `hex`, `c`, `base64` and `ihex`. |
+| `HexPlusPlus.export.fillByte` | `255` (`0xFF`) | Byte used to fill gaps when exporting to BIN |
+| `HexPlusPlus.export.recordLength` | `16` | Data bytes per record when exporting Intel HEX / S-Record / TI-TXT (16 or 32) |
 
-## 支持的格式
+The UI language follows the VS Code display language (Command Palette → **Configure Display Language**). `zh-cn` shows Chinese; every other language shows English.
 
-| 格式 | 扩展名 | 说明 |
+## Supported formats
+
+| Format | Extensions | Notes |
 | --- | --- | --- |
-| Intel HEX | `.hex` `.ihex` `.ihx` | 记录类型 00–05，检查校验和 |
-| Motorola S-Record | `.srec` `.s19` `.s28` `.s37` `.mot` | S0–S9，检查校验和 |
-| TI-TXT | `.txt` | `@` 地址行，`q` 结束 |
-| ELF | 任意（按文件头识别） | 32 / 64 位、大小端；按物理地址加载 `PT_LOAD` 段 |
-| BIN | 其他所有文件 | 从地址 0 开始 |
+| Intel HEX | `.hex` `.ihex` `.ihx` | Record types 00–05, checksums verified |
+| Motorola S-Record | `.srec` `.s19` `.s28` `.s37` `.mot` | S0–S9, checksums verified |
+| TI-TXT | `.txt` | `@` address lines, ends with `q` |
+| ELF | Any (detected from the header) | 32 / 64-bit, either endianness. `PT_LOAD` segments are loaded at their physical addresses. |
+| BIN | Everything else | Starts at address 0 |
 
-格式先按扩展名判断，再用文件内容确认；内容对不上时按 BIN 处理（例如内容不是 `@` 开头的 `.txt` 文件）。解析中遇到的错误（如校验和错误）不会中断加载，会在状态栏显示为警告。
+Hex++ detects the format from the extension, then checks it against the file content. If they don't match, the file is treated as BIN; for example, a `.txt` file that doesn't start with `@`. Parse errors, such as a bad checksum, don't stop loading; they appear as warnings in the status bar.
 
-## 常见问题
+## FAQ
 
-**为什么输入没有反应？**
-Hex++ Editor 默认以只读模式打开，按 `Insert` 或点击工具栏的 `只读` 锁形按钮切换为读写。Hex++ Viewer 始终只读。
+**Why doesn't typing do anything?**
+The Hex++ Editor opens read-only by default. Press `Insert` or click the `Read-only` lock button on the toolbar to switch to read/write. The Hex++ Viewer is always read-only.
 
-**对比结果里没有我刚做的修改？**
-对比读取的是磁盘上的文件，不包含编辑器中尚未保存的修改。请先保存，再在对比视图中按 `F5` 重载。
+**I don't want `.hex` files to open in Hex++ on double-click.**
+Set that extension to `"default"` under `workbench.editorAssociations` in `settings.json`. See [Opening files](#opening-files).
 
-**ELF 文件能另存为其他格式吗？**
-可以把 ELF 的加载段导出为 BIN / HEX / S-Record / TI-TXT；但只能从 ELF 文件另存为 ELF，其他格式无法转换为 ELF。
+**My latest change is missing from the comparison.**
+The comparison reads the files from disk, so unsaved changes in an editor are not included. Save first, then press `F5` in the comparison view to reload.
 
-**转换为 BIN 后文件变大了？**
-BIN 没有地址信息，段与段之间的地址空洞必须用填充字节补齐。如果固件中的段相距很远（例如 Flash 与 EEPROM 两个区域），生成的 BIN 会很大。
+**Can I save an ELF file in another format?**
+Yes. The loadable segments of an ELF file can be exported to BIN / HEX / S-Record / TI-TXT. However, only an ELF source can be saved as ELF; other formats cannot be converted to ELF.
 
-**发现问题或有建议？**
-欢迎到 [GitHub Issues](https://github.com/acerun/vsc_hex-/issues) 反馈。
+**Why did the file get bigger after converting to BIN?**
+BIN has no address information, so the gaps between segments must be filled. If the segments are far apart (for example, Flash and EEPROM regions), the BIN file will be large.
 
-## 许可证
+**The CRC doesn't match the one computed on my MCU.**
+Check that the algorithm parameters (polynomial, init, reflection, XOR out), the range and the gap handling are the same. For the STM32 hardware CRC peripheral, use **CRC-32/STM32** (reads little-endian 32-bit words), not CRC-32. For unusual parameters, use a **custom CRC**.
+
+**Found a bug or have a suggestion?**
+Please open an issue on [GitHub Issues](https://github.com/acerun/vsc_hex-/issues).
+
+## License
 
 [MIT](LICENSE)
