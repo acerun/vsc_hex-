@@ -1,0 +1,145 @@
+/* 工具界面：侧面板（检查器 / 校验 / 补丁）、卡片列表、表单、弹出菜单；固件加工面板共用。 */
+:root {
+  --accent: var(--vscode-focusBorder, #007fd4);
+  --err: var(--vscode-errorForeground, #f14c4c);
+  --warn: var(--vscode-editorWarning-foreground, #bf8803);
+  --card-bg: var(--vscode-sideBar-background, rgba(128, 128, 128, 0.06));
+  --card-hover: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.12));
+  --mono: var(--vscode-editor-font-family, monospace);
+}
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); }
+.err { color: var(--err); }
+.warn { color: var(--warn); }
+.spacer { flex: 1; }
+code { font-family: var(--mono); background: rgba(128, 128, 128, 0.14); border-radius: 3px; padding: 0 4px; }
+
+button.sm { padding: 1px 7px; font-size: 12px; }
+button.accent { color: var(--vscode-textLink-foreground); }
+button.primary {
+  background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+  padding: 4px 14px; border-radius: 2px;
+}
+button.primary:hover { background: var(--vscode-button-hoverBackground); }
+button.secondary {
+  background: var(--vscode-button-secondaryBackground, rgba(128, 128, 128, 0.2));
+  color: var(--vscode-button-secondaryForeground, inherit); padding: 4px 14px; border-radius: 2px;
+}
+button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground, rgba(128, 128, 128, 0.3)); }
+.seg.sm button { min-width: 0; padding: 1px 8px; font-size: 12px; }
+input.mono { font-family: var(--mono); }
+input.byte { width: 4ch; text-align: center; margin-left: 6px; box-sizing: content-box; }
+input.ro { opacity: 0.75; background: transparent; }
+input.bad, select.bad { outline: 1px solid var(--err) !important; outline-offset: -1px; }
+
+/* ---------- 侧面板 ---------- */
+#panel {
+  width: 300px; flex: none; display: flex; flex-direction: column; position: relative; min-width: 240px;
+  border-left: 1px solid var(--border); background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  font-size: 12px;
+}
+#resizer { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 2; }
+#resizer:hover, #resizer:active { background: var(--accent); opacity: 0.5; }
+#tabs { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); padding: 0 4px; flex: none; }
+#tabs button {
+  border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 6px 10px 4px;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px;
+}
+#tabs button.on { color: var(--vscode-foreground); border-bottom-color: var(--accent); background: transparent; }
+#tabs #panelClose { text-transform: none; padding: 4px 8px; }
+.pane { flex: 1; overflow: auto; min-height: 0; display: flex; flex-direction: column; }
+#inspector.pane { display: block; }
+
+.tsec { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.tsec.grow { border-bottom: none; }
+.thead { display: flex; align-items: center; gap: 4px; padding: 6px 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+.tsec > .thead { padding: 0 0 6px; }
+.thead button { text-transform: none; letter-spacing: 0; font-weight: normal; color: var(--vscode-foreground); }
+.thead button.accent { color: var(--vscode-textLink-foreground); }
+.tinfo { color: var(--muted); padding: 6px 0 0; line-height: 1.5; }
+.tinfo.busy::after { content: ' · 计算中…'; }
+.tfoot {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid var(--border);
+  position: sticky; bottom: 0; background: inherit; margin-top: auto;
+}
+#patchPane { background: inherit; }
+
+/* 表单行：标签 | 控件 */
+.frow { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 6px; margin: 4px 0; }
+.frow > label { color: var(--muted); white-space: nowrap; }
+.fctl { display: flex; align-items: center; min-width: 0; flex-wrap: wrap; gap: 4px 0; }
+.fctl > input:not(.byte), .fctl > select { flex: 1; min-width: 0; }
+.pair { display: flex; align-items: center; flex: 1; min-width: 0; }
+.pair input { flex: 1; min-width: 0; width: 0; }
+.dash { color: var(--muted); padding: 0 4px; }
+
+/* 校验结果 */
+.results { display: flex; flex-direction: column; gap: 2px; }
+.res {
+  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name act" "val act";
+  padding: 5px 8px; border-radius: 4px; cursor: pointer; border: 1px solid transparent;
+}
+.res:hover { background: var(--card-hover); }
+.res .rname { grid-area: name; color: var(--muted); font-size: 11px; }
+.res .rval { grid-area: val; font-size: var(--vscode-editor-font-size, 13px); word-break: break-all; user-select: text; }
+.res .ract { grid-area: act; display: flex; align-items: center; gap: 2px; visibility: hidden; padding-left: 6px; }
+.res:hover .ract, .res .ract.show { visibility: visible; }
+.res.bad .rval { color: var(--err); font-family: inherit; font-size: 12px; }
+.res.big { cursor: default; }
+
+.algos { border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; max-height: 300px; overflow: auto; }
+.agroup + .agroup { margin-top: 6px; }
+.aglabel { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+label.chk { display: flex; align-items: center; gap: 6px; padding: 1px 0; cursor: pointer; }
+label.chk input { margin: 0; }
+label.chk .muted { margin-left: auto; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crcp { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+.crcp > label:not(.chk) { display: flex; flex-direction: column; gap: 2px; color: var(--muted); }
+.crcp input:not([type=checkbox]) { width: 100%; }
+
+/* ---------- 卡片列表 ---------- */
+.cards { display: flex; flex-direction: column; gap: 6px; padding: 0 10px 10px; }
+.cempty { padding: 20px 14px; color: var(--muted); text-align: center; line-height: 1.8; }
+.card {
+  border: 1px solid var(--border); border-radius: 5px; background: var(--vscode-editor-background);
+  border-left: 3px solid var(--accent); transition: border-color 0.15s;
+}
+.card.off { opacity: 0.55; border-left-color: var(--border); }
+.card.err { border-left-color: var(--err); }
+.chead { display: flex; align-items: center; gap: 6px; padding: 5px 6px; cursor: pointer; min-width: 0; }
+.chead:hover { background: var(--card-hover); }
+.chead input { margin: 0; flex: none; }
+.cidx {
+  flex: none; min-width: 16px; height: 16px; border-radius: 8px; font-size: 10px; line-height: 16px; text-align: center;
+  background: rgba(128, 128, 128, 0.2); color: var(--muted);
+}
+.ctitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctitle b { font-weight: 600; }
+.arrow { color: var(--muted); padding: 0 4px; }
+.tag { font-size: 10px; padding: 0 4px; border-radius: 3px; background: rgba(128, 128, 128, 0.2); color: var(--muted); }
+.cact { flex: none; display: flex; visibility: hidden; }
+.chead:hover .cact { visibility: visible; }
+.cact button { padding: 0 5px; font-size: 11px; color: var(--muted); }
+.cact button:hover { color: var(--vscode-foreground); }
+.cbody { display: none; padding: 2px 10px 6px; border-top: 1px solid var(--border); }
+.card.open .cbody { display: block; }
+.cprev { padding: 0 10px 6px 30px; font-size: 12px; line-height: 1.6; word-break: break-all; }
+.cprev:empty { display: none; }
+.card.open .cprev { padding-left: 10px; }
+
+/* ---------- 弹出菜单 ---------- */
+.menu {
+  position: fixed; z-index: 100; min-width: 200px; padding: 4px 0; border-radius: 5px;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, inherit);
+  border: 1px solid var(--vscode-menu-border, var(--border));
+  box-shadow: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  font-size: 12px;
+}
+.mi { display: flex; gap: 16px; justify-content: space-between; padding: 4px 12px; cursor: pointer; }
+.mi:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-menu-selectionForeground, inherit);
+}
+.mi:hover .muted { color: inherit; opacity: 0.8; }

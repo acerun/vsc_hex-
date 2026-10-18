@@ -453,7 +453,7 @@
   // 复制：拦截 Ctrl+C（VS Code 会在 webview 内触发 copy 事件），交给扩展按配置格式转换
   document.addEventListener('copy', (e) => {
     const t = /** @type {HTMLElement} */ (e.target);
-    if (t && (t.tagName === 'INPUT' || t.closest('#inspector'))) return;
+    if (t && (t.tagName === 'INPUT' || t.closest('#panel'))) return;
     e.preventDefault();
     postSel();
     post({ type: 'copy' });
@@ -506,6 +506,7 @@
     render();
     updateInspector();
     postSel();
+    requestSum();
   }
   function setReadOnly(ro) {
     S.readOnly = ro;
@@ -631,7 +632,7 @@
   // ---------------- 数据检查器 ----------------
   function updateInspector() {
     const el = $('inspector');
-    if (!S || el.classList.contains('hidden')) return;
+    if (!S || !panelOpen() || tab !== 'insp') return;
     const b = bytesAt(S.sel.side, S.sel.cursor, 8);
     const n = b.findIndex((v) => v < 0);
     const avail = n < 0 ? 8 : n;
@@ -654,6 +655,269 @@
     }
     if (avail === 0) rows.push(['', '（无数据）']);
     el.innerHTML = `<h4>数据检查器 · ${le ? '小端' : '大端'}</h4><table>${rows.map((r) => `<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join('')}</table>`;
+  }
+
+  // ---------------- 侧面板：检查器 / 校验 / 补丁 ----------------
+  // @ts-ignore
+  const UI = window.HexppTools;
+  const panelEl = $('panel');
+  const TAB_NAMES = { insp: '检查器', sum: '校验', patch: '补丁' };
+  let tab = 'insp';
+  /** 校验页状态；scope: sel 选区 / all 全部 / custom 自定义 */
+  const T = { note: '', algos: [], selected: new Set(), custom: {}, canPatch: false, scope: 'sel', skip: false, fill: 'FF', start: '', end: '', req: 0, timer: 0, big: false };
+  /** @type {any} */
+  let patchList = null;
+  let patchTimer = 0;
+  const ui = Object.assign({ open: false, tab: 'insp', w: 300 }, vscode.getState() || {});
+  function saveUi() {
+    vscode.setState({ open: panelOpen(), tab, w: panelEl.offsetWidth || ui.w, scope: T.scope, skip: T.skip, fill: T.fill, start: T.start, end: T.end });
+  }
+
+  function panelOpen() { return !panelEl.classList.contains('hidden'); }
+  function tabsFor() { return S.mode === 'compare' ? ['insp', 'sum'] : ['insp', 'sum', 'patch']; }
+  function showTab(t, toggle) {
+    if (!S || !tabsFor().includes(t)) return;
+    if (toggle && panelOpen() && tab === t) panelEl.classList.add('hidden');
+    else { tab = t; panelEl.classList.remove('hidden'); }
+    const open = panelOpen();
+    $('inspector').classList.toggle('hidden', tab !== 'insp');
+    $('sumPane').classList.toggle('hidden', tab !== 'sum');
+    $('patchPane').classList.toggle('hidden', tab !== 'patch');
+    document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', open && /** @type {any} */ (b).dataset.tab === tab));
+    if (open && tab === 'insp') updateInspector();
+    if (open && tab === 'sum') requestSum(true);
+    if (open && tab === 'patch' && T.canPatch) post({ type: 'patchPreview' });
+    saveUi();
+  }
+  function buildTabs() {
+    $('tabs').innerHTML = tabsFor().map((t) => `<button data-tab="${t}">${TAB_NAMES[t]}</button>`).join('') +
+      '<span class="spacer"></span><button id="panelClose" title="关闭面板">✕</button>';
+    $('tabs').querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => showTab(/** @type {any} */ (b).dataset.tab, false)));
+    $('panelClose').addEventListener('click', () => { panelEl.classList.add('hidden'); document.querySelectorAll('[data-tab]').forEach((b) => b.classList.remove('on')); saveUi(); });
+  }
+  $('resizer').addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const right = panelEl.getBoundingClientRect().right;
+    const mv = (/** @type {MouseEvent} */ ev) => { panelEl.style.width = Math.max(240, Math.min(720, right - ev.clientX)) + 'px'; };
+    const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); saveUi(); };
+    window.addEventListener('mousemove', mv);
+    window.addEventListener('mouseup', up);
+  });
+
+  function initTools(tools, first) {
+    T.algos = tools.algos;
+    T.canPatch = tools.canPatch;
+    if (first) {
+      T.selected = new Set(tools.selected);
+      T.custom = tools.custom;
+      T.scope = ui.scope || 'sel';
+      T.skip = !!ui.skip;
+      T.fill = ui.fill || tools.fill;
+      T.start = ui.start || '';
+      T.end = ui.end || '';
+      panelEl.style.width = ui.w + 'px';
+      buildTabs();
+      buildSumPane();
+      buildPatchPane();
+      if (patchList) patchList.set(tools.patches);
+      if (ui.open) showTab(tabsFor().includes(ui.tab) ? ui.tab : 'insp', false);
+    } else if (panelOpen()) {
+      showTab(tab, false);
+    }
+  }
+
+  // ---------- 校验 ----------
+  const hexStr = (a) => a.toString(16).toUpperCase().padStart(8, '0').replace(/^(.{4})(.{4})$/, '$1_$2');
+  function sumRange() {
+    const segs = S.sides[S.sel.side].segs;
+    const all = () => segs.length ? { start: hexStr(segs[0].address), end: hexStr(segs[segs.length - 1].address + segs[segs.length - 1].data.length - 1), note: '' } : null;
+    if (T.scope === 'custom') return { start: T.start, end: T.end, note: '' };
+    if (T.scope === 'sel') {
+      const r = selRange();
+      if (r.end - r.start > S.unit) return { start: hexStr(r.start), end: hexStr(r.end - 1), note: '' };
+      const a = all();
+      return a && { ...a, note: '无选区，按全部计算' };
+    }
+    return all();
+  }
+  function buildSumPane() {
+    const el = $('sumPane');
+    el.innerHTML = `<div class="tsec">
+        <div class="frow"><label>范围</label><div class="fctl"><span class="seg sm" id="sumScope"><button data-v="sel">选区</button><button data-v="all">全部</button><button data-v="custom">自定义</button></span></div></div>
+        <div class="frow"><label></label><div class="fctl"><span class="pair"><input id="sumStart" class="mono" placeholder="起始" spellcheck="false"><span class="dash">–</span><input id="sumEnd" class="mono" placeholder="结束(含) 或 +长度" spellcheck="false"></span></div></div>
+        <div class="frow"><label>空洞</label><div class="fctl"><span class="seg sm" id="sumHoles"><button data-v="fill">填充</button><button data-v="skip">跳过</button></span><input id="sumFill" class="mono byte" spellcheck="false" title="填充字节（十六进制）"></div></div>
+      </div>
+      <div class="tsec grow">
+        <div class="thead"><span>结果</span><span class="spacer"></span><button id="sumAlgoBtn" class="sm" title="选择要计算的算法">算法 ▾</button></div>
+        <div id="sumAlgos" class="algos hidden"></div>
+        <div id="sumList" class="results"></div>
+        <div id="sumInfo" class="tinfo"></div>
+      </div>`;
+    const startEl = /** @type {HTMLInputElement} */ ($('sumStart')), endEl = /** @type {HTMLInputElement} */ ($('sumEnd'));
+    $('sumScope').addEventListener('click', (e) => {
+      const b = /** @type {HTMLElement} */ (e.target).closest('button');
+      if (!b) return;
+      if (b.dataset.v === 'custom' && T.scope !== 'custom' && !T.start) { const r = sumRange(); if (r) { T.start = r.start; T.end = r.end; } }
+      T.scope = /** @type {string} */ (b.dataset.v);
+      syncSumForm();
+      requestSum(true);
+      saveUi();
+    });
+    $('sumHoles').addEventListener('click', (e) => {
+      const b = /** @type {HTMLElement} */ (e.target).closest('button');
+      if (!b) return;
+      T.skip = b.dataset.v === 'skip';
+      syncSumForm();
+      requestSum(true);
+      saveUi();
+    });
+    const onInput = () => { T.start = startEl.value; T.end = endEl.value; T.fill = /** @type {HTMLInputElement} */ ($('sumFill')).value; requestSum(true); saveUi(); };
+    [startEl, endEl, $('sumFill')].forEach((x) => x.addEventListener('input', onInput));
+    $('sumAlgoBtn').addEventListener('click', () => { $('sumAlgos').classList.toggle('hidden'); $('sumAlgoBtn').classList.toggle('on'); });
+    buildAlgoChooser();
+    $('sumList').addEventListener('click', (e) => {
+      const t = /** @type {HTMLElement} */ (e.target);
+      const res = /** @type {HTMLElement | null} */ (t.closest('.res'));
+      if (!res) return;
+      const val = /** @type {HTMLElement} */ (res.querySelector('.rval')).textContent || '';
+      if (t.closest('[data-write]')) addChecksumPatch(/** @type {string} */ (res.dataset.id));
+      else if (t.closest('[data-big]')) requestSum(true, true);
+      else if (val && !res.classList.contains('bad')) post({ type: 'clipboard', text: val });
+    });
+    syncSumForm();
+  }
+  function buildAlgoChooser() {
+    const groups = [];
+    for (const a of T.algos) {
+      let g = groups.find((x) => x.name === a.group);
+      if (!g) groups.push((g = { name: a.group, list: [] }));
+      g.list.push(a);
+    }
+    const c = T.custom;
+    const cin = (k, ph) => `<label><span>${ph}</span><input data-c="${k}" class="mono" value="${UI.esc(c[k])}" spellcheck="false"></label>`;
+    $('sumAlgos').innerHTML = groups.map((g) => `<div class="agroup"><div class="aglabel">${g.name}</div>${g.list.map((a) =>
+      `<label class="chk" title="${UI.esc(a.note || '')}"><input type="checkbox" data-algo="${a.id}"${T.selected.has(a.id) ? ' checked' : ''}><span>${UI.esc(a.name)}</span>${a.note ? `<span class="muted">${UI.esc(a.note)}</span>` : ''}</label>`).join('')}</div>`).join('') +
+      `<div class="crcp${T.selected.has('custom') ? '' : ' hidden'}" id="crcParams">${cin('width', '宽度')}${cin('poly', '多项式')}${cin('init', '初值')}${cin('xorout', '结果异或')}
+        <label class="chk"><input type="checkbox" data-c="refin"${c.refin ? ' checked' : ''}><span>输入反转</span></label><label class="chk"><input type="checkbox" data-c="refout"${c.refout ? ' checked' : ''}><span>输出反转</span></label></div>`;
+    const el = $('sumAlgos');
+    const changed = () => { post({ type: 'toolsState', selected: [...T.selected], custom: T.custom }); requestSum(true); };
+    el.addEventListener('change', (e) => {
+      const t = /** @type {HTMLInputElement} */ (e.target);
+      if (t.dataset.algo) {
+        t.checked ? T.selected.add(t.dataset.algo) : T.selected.delete(t.dataset.algo);
+        $('crcParams').classList.toggle('hidden', !T.selected.has('custom'));
+      } else if (t.dataset.c) T.custom[t.dataset.c] = t.type === 'checkbox' ? t.checked : t.value;
+      changed();
+    });
+    el.addEventListener('input', (e) => {
+      const t = /** @type {HTMLInputElement} */ (e.target);
+      if (t.dataset.c && t.type !== 'checkbox') { T.custom[t.dataset.c] = t.value; changed(); }
+    });
+  }
+  function syncSumForm() {
+    const custom = T.scope === 'custom';
+    $('sumScope').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === T.scope));
+    $('sumHoles').querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b.dataset.v === 'skip') === T.skip));
+    const startEl = /** @type {HTMLInputElement} */ ($('sumStart')), endEl = /** @type {HTMLInputElement} */ ($('sumEnd'));
+    startEl.readOnly = endEl.readOnly = !custom;
+    startEl.classList.toggle('ro', !custom);
+    endEl.classList.toggle('ro', !custom);
+    if (custom) { startEl.value = T.start; endEl.value = T.end; }
+    const f = /** @type {HTMLInputElement} */ ($('sumFill'));
+    f.value = T.fill;
+    f.classList.toggle('hidden', T.skip);
+  }
+  /** 请求计算（去抖）；force 缩短等待，big 为用户确认计算大范围 */
+  function requestSum(force, big) {
+    if (!S || !panelOpen() || tab !== 'sum') return;
+    clearTimeout(T.timer);
+    T.timer = setTimeout(() => {
+      const r = sumRange();
+      if (!r) { $('sumList').innerHTML = '<div class="cempty">没有数据</div>'; $('sumInfo').textContent = ''; return; }
+      if (T.scope !== 'custom') {
+        /** @type {HTMLInputElement} */ ($('sumStart')).value = r.start;
+        /** @type {HTMLInputElement} */ ($('sumEnd')).value = r.end;
+      }
+      const ids = T.algos.map((a) => a.id).filter((id) => T.selected.has(id));
+      if (!ids.length) { $('sumList').innerHTML = '<div class="cempty">点击「算法 ▾」选择要计算的算法</div>'; $('sumInfo').textContent = ''; return; }
+      // 空洞填充且范围很大时（如 Flash 与 RAM 段相距很远）需要确认后再算
+      const span = parseInt(r.end.replace(/_/g, ''), 16) - parseInt(r.start.replace(/_/g, ''), 16) + 1;
+      if (!big && !T.skip && span > 64 * 1024 * 1024 && T.scope !== 'custom') {
+        $('sumList').innerHTML = `<div class="res big" data-id=""><div class="rname">范围约 ${num(Math.round(span / 1048576))} MB（含大段空洞）</div><div class="rval"></div><div class="ract show"><button data-big>仍然计算</button></div></div>`;
+        $('sumInfo').textContent = '可改为「跳过」空洞，或用自定义范围';
+        return;
+      }
+      T.req++;
+      T.note = r.note;
+      $('sumInfo').classList.add('busy');
+      post({ type: 'checksum', req: T.req, side: S.sel.side, algos: ids, start: r.start, end: r.end, skip: T.skip, fill: T.fill, le: S.le });
+    }, force ? 30 : 150);
+  }
+  function onSumResult(m) {
+    if (m.req !== T.req) return;
+    const info = $('sumInfo');
+    info.classList.remove('busy');
+    ['sumStart', 'sumEnd', 'sumFill'].forEach((id) => $(id).classList.remove('bad'));
+    if (m.error) {
+      info.innerHTML = `<span class="err">✕ ${UI.esc(m.error)}</span>`;
+      const f = { start: 'sumStart', end: 'sumEnd', fill: 'sumFill' }[m.field];
+      if (f) $(f).classList.add('bad');
+      return;
+    }
+    const canWrite = T.canPatch && S.mode === 'edit';
+    $('sumList').innerHTML = m.results.map((r) => `<div class="res${r.error ? ' bad' : ''}" data-id="${r.id}">
+        <div class="rname">${UI.esc(r.name)}</div>
+        <div class="rval mono" title="${r.error ? '' : '点击复制'}">${UI.esc(r.error || r.text)}</div>
+        <div class="ract">${r.error ? '' : `<button data-copy title="复制">复制</button>${canWrite ? '<button data-write title="以此算法和范围新建写入补丁">写入…</button>' : ''}`}</div>
+      </div>`).join('');
+    const side = S.mode === 'compare' ? (S.sel.side === 0 ? '左侧 · ' : '右侧 · ') : '';
+    const holes = m.end - m.start - m.count;
+    info.textContent = `${side}${fmtAddr(m.start)} – ${fmtAddr(m.end - 1)} · ${num(m.count)} 字节` +
+      (holes > 0 ? `（跳过空洞 ${num(holes)}）` : '') + ` · ${m.ms} ms` + (T.note ? ` · ${T.note}` : '');
+  }
+  function addChecksumPatch(algo) {
+    const r = sumRange();
+    if (!r || !patchList) return;
+    const after = parseInt(r.end.replace(/_/g, ''), 16) + 1;
+    showTab('patch', false);
+    patchList.add(Object.assign(UI.patchDefaults('checksum', { algo, start: r.start, end: r.end, address: hexStr(after), fill: T.fill }), { holes: T.skip ? 'skip' : 'fill' }));
+    flash('已添加补丁：写入地址默认为范围之后，请按需修改');
+  }
+
+  // ---------- 补丁 ----------
+  function buildPatchPane() {
+    const el = $('patchPane');
+    if (!T.canPatch) {
+      el.innerHTML = `<div class="cempty">${S.mode === 'view' ? '只读查看器不能写入。<br>用「Hex++ Editor」打开文件后再应用补丁，<br>或在「加工…」中添加「写入补丁」步骤生成新文件。' : '当前视图不支持补丁。'}</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="thead"><button id="patchAdd" class="sm accent" title="添加补丁">＋ 添加</button><span class="spacer"></span>
+        <button id="patchImport" class="sm" title="从 JSON 导入补丁方案">导入</button><button id="patchExport" class="sm" title="导出为 JSON，便于团队共享或批量处理">导出</button></div>
+      <div id="patchList"></div>
+      <div class="tfoot"><button id="patchApply" class="primary" title="按顺序写入全部启用的补丁 (Ctrl+Enter)">应用补丁</button><span class="muted">按顺序写入，可一次撤销</span></div>`;
+    patchList = UI.cardList($('patchList'), {
+      title: (p) => UI.patchTitle(p, T.algos),
+      fields: (p) => UI.patchFields(p, '', T.algos),
+      empty: '还没有补丁。<br>点击「＋ 添加」，或在「校验」页点结果旁的「写入…」。<br><span class="muted">补丁方案按文件自动保存。</span>',
+      onChange: (list) => { clearTimeout(patchTimer); patchTimer = setTimeout(() => post({ type: 'patchSave', patches: list }), 200); },
+    });
+    $('patchAdd').addEventListener('click', () => UI.menu($('patchAdd'), UI.PATCH_KINDS.map(([k, l]) => [k, l, PATCH_HINT[k]]), (kind) => {
+      const r = selRange();
+      const hasSel = r.end - r.start > S.unit;
+      const ctx = kind === 'checksum' && hasSel
+        ? { start: hexStr(r.start), end: hexStr(r.end - 1), address: hexStr(r.end), fill: T.fill }
+        : { address: hexStr(r.start), fill: T.fill };
+      patchList.add(UI.patchDefaults(kind, ctx));
+    }));
+    $('patchImport').addEventListener('click', () => post({ type: 'patchImport' }));
+    $('patchExport').addEventListener('click', () => post({ type: 'patchExport' }));
+    $('patchApply').addEventListener('click', applyPatches);
+    el.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); applyPatches(); } });
+  }
+  const PATCH_HINT = { checksum: 'CRC / 校验和 / 哈希', number: 'u8 / u16 / u32 常量', serial: '应用后自动递增', time: 'Unix / BCD / 文本', text: '版本字符串等', bytes: '任意十六进制字节' };
+  function applyPatches() {
+    clearTimeout(patchTimer);
+    post({ type: 'patchApply', ro: S.readOnly, patches: patchList.get() });
   }
 
   // ---------------- 状态栏 ----------------
@@ -679,6 +943,7 @@
     $('status').innerHTML = parts.map((p) => `<span>${p}</span>`).join('');
     const w = document.getElementById('warnLink');
     if (w) w.onclick = () => post({ type: 'showWarnings' });
+    if (T.scope === 'sel') requestSum();
   }
 
   // ---------------- 对比：过滤与导航 ----------------
@@ -736,10 +1001,14 @@
       h = `<span class="seg"><button data-filter="all" title="显示全部数据">✱ 全部</button><button data-filter="diff" title="只显示差异（相同区域折叠）">≠ 差异</button></span>
         <span class="sep"></span><button id="next" title="下一个差异 (F8)">⬇ 下一个</button><button id="prev" title="上一个差异 (Shift+F8)">⬆ 上一个</button><span id="diffInfo"></span>
         <span class="sep"></span><button id="swap" title="交换左右">⇄ 交换</button><button id="reload" title="从磁盘重新加载 (F5)">⟳ 重载</button>
-        <span class="sep"></span>${common}${find}<span class="spacer"></span><button id="report" title="导出 HTML 对比报告">导出报告</button>`;
+        <span class="sep"></span>${common}${find}<span class="spacer"></span>
+        <span class="seg"><button data-tab="insp" title="数据检查器">检查器</button><button data-tab="sum" title="CRC / 校验和 / 哈希（当前一侧）">校验</button></span>
+        <button id="report" title="导出 HTML 对比报告">导出报告</button>`;
     } else {
       h = `${common}${mode === 'edit' ? '<button id="ro" title="切换只读/读写 (Insert)"></button>' : ''}${find}
-        <span class="spacer"></span><button id="inspBtn" title="数据检查器">检查器</button><button id="saveAs" title="另存为其他格式">另存为…</button><button id="cmpBtn" title="与另一个文件比较">比较…</button>`;
+        <span class="spacer"></span>
+        <span class="seg"><button data-tab="insp" title="数据检查器">检查器</button><button data-tab="sum" title="CRC / 校验和 / 哈希">校验</button><button data-tab="patch" title="写入校验值、版本号、时间戳、序列号">补丁</button></span>
+        <button id="procBtn" title="合并 / 偏移 / 裁剪 / 填充 / 拆分，生成新文件">加工…</button><button id="saveAs" title="另存为其他格式">另存为…</button><button id="cmpBtn" title="与另一个文件比较">比较…</button>`;
     }
     $('toolbar').innerHTML = h;
     const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
@@ -751,7 +1020,8 @@
     on('saveAs', () => post({ type: 'saveAs' }));
     on('cmpBtn', () => post({ type: 'compareWith' }));
     on('ro', () => setReadOnly(!S.readOnly));
-    on('inspBtn', toggleInspector);
+    on('procBtn', () => post({ type: 'process' }));
+    document.querySelectorAll('#toolbar [data-tab]').forEach((b) => b.addEventListener('click', () => showTab(/** @type {any} */ (b).dataset.tab, true)));
     document.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => { setUnit(+(/** @type {any} */ (b).dataset.unit)); scroller.focus(); }));
     $('endian').addEventListener('click', () => setLe(!S.le));
     gotoInput().addEventListener('keydown', (e) => {
@@ -773,13 +1043,7 @@
     $('findNext').addEventListener('click', () => findStep(1, false));
     document.querySelectorAll('[data-filter]').forEach((b) => b.addEventListener('click', () => setFilter(/** @type {any} */ (b).dataset.filter)));
   }
-  function toggleInspector() {
-    const el = $('inspector');
-    el.classList.toggle('hidden');
-    const b = document.getElementById('inspBtn');
-    if (b) b.classList.toggle('on', !el.classList.contains('hidden'));
-    updateInspector();
-  }
+  function toggleInspector() { showTab('insp', true); }
 
   // ---------------- 消息 ----------------
   let toolbarMode = '';
@@ -790,7 +1054,7 @@
       case 'update':
         writeLocal(0, m.addr, m.data);
         for (let i = 0; i < m.data.length; i++) m.flags[i] ? S.edited.add(m.addr + i) : S.edited.delete(m.addr + i);
-        render(); updateInspector(); break;
+        render(); updateInspector(); requestSum(); break;
       case 'saved': S.edited.clear(); render(); break;
       case 'setUnit': setUnit(m.unit); break;
       case 'goto': gotoInput().focus(); gotoInput().select(); break;
@@ -801,6 +1065,11 @@
       case 'next': gotoBlock(1); break;
       case 'prev': gotoBlock(-1); break;
       case 'flash': flash(m.text); break;
+      case 'checksumResult': onSumResult(m); break;
+      case 'patchPreview': if (patchList) patchList.preview(m.results); break;
+      case 'patches': if (patchList) patchList.set(m.patches); break;
+      case 'setReadOnly': setReadOnly(m.ro); break;
+      case 'openTab': showTab(m.tab, false); break;
     }
   });
 
@@ -840,6 +1109,7 @@
     firstRow = keepAddr !== null ? addrToRow(keepAddr) : 0;
     scrollToRow(firstRow);
     if (prev && /** @type {HTMLInputElement} */ ($('findText')).value) runFind();
+    initTools(m.tools, !prev);
     if (!prev) scroller.focus();
   }
   function measureRow() {

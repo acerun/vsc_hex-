@@ -22,6 +22,8 @@ export interface HexTarget {
   /** 单文件编辑器对应的文件（对比面板没有） */
   docUri?: vscode.Uri;
   fill?(start: number, end: number, pattern: Uint8Array): void;
+  /** 一次写入多处（一个撤销步骤），用于应用补丁 */
+  applyWrites?(writes: { address: number; bytes: Uint8Array }[], label: string): void;
 }
 
 let active: HexTarget | undefined;
@@ -71,15 +73,15 @@ export function sidePayload(img: MemoryImage, uri: vscode.Uri, meta = '') {
 
 export function webviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   const nonce = Array.from({ length: 24 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
-  const css = webview.asWebviewUri(vscode.Uri.joinPath(extUri, 'media', 'hexview.css'));
-  const js = webview.asWebviewUri(vscode.Uri.joinPath(extUri, 'media', 'hexview.js'));
+  const media = (f: string) => webview.asWebviewUri(vscode.Uri.joinPath(extUri, 'media', f));
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="${css}" rel="stylesheet">
+<link href="${media('hexview.css')}" rel="stylesheet">
+<link href="${media('tools.css')}" rel="stylesheet">
 </head>
 <body data-vscode-context='{"webviewSection":"hexpp","preventDefaultContextMenuItems":true}'>
 <div id="toolbar"></div>
@@ -89,10 +91,17 @@ export function webviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string
     <div id="sticky" class="grid"><div id="head"></div><div id="rows"></div></div>
     <div id="spacer"></div>
   </div>
-  <div id="inspector" class="hidden"></div>
+  <div id="panel" class="hidden">
+    <div id="resizer" title="拖动调整宽度"></div>
+    <div id="tabs"></div>
+    <div id="inspector" class="pane"></div>
+    <div id="sumPane" class="pane"></div>
+    <div id="patchPane" class="pane"></div>
+  </div>
 </div>
 <div id="status"></div>
-<script nonce="${nonce}" src="${js}"></script>
+<script nonce="${nonce}" src="${media('toolsui.js')}"></script>
+<script nonce="${nonce}" src="${media('hexview.js')}"></script>
 </body>
 </html>`;
 }

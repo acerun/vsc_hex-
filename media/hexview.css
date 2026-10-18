@@ -96,11 +96,7 @@ input:focus, select:focus { outline: 1px solid var(--vscode-focusBorder); outlin
 .empty { padding: 24px; color: var(--muted); font-family: var(--vscode-font-family); white-space: normal; }
 
 /* ---------- 数据检查器 ---------- */
-#inspector {
-  width: 270px; flex: none; overflow: auto; border-left: 1px solid var(--border);
-  padding: 6px 10px; font-size: 12px;
-}
-#inspector.hidden { display: none; }
+#inspector { padding: 6px 10px; font-size: 12px; }
 #inspector h4 { margin: 4px 0 6px; font-weight: 600; }
 #inspector table { border-collapse: collapse; width: 100%; }
 #inspector td { padding: 2px 4px; vertical-align: top; }
