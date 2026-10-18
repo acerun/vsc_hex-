@@ -33,6 +33,29 @@
   }
   function post(msg) { vscode.postMessage(msg); }
 
+  // 工具栏图标：16×16 线条图，颜色随 currentColor（CSP 不允许内联 style，只用 SVG 属性）
+  const ICONS = {
+    search: '<circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14 14"/>',
+    lock: '<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
+    unlock: '<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7"/>',
+    insp: '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M2.5 6h11M2.5 9.5h11M6.5 6v7.5"/>',
+    sum: '<path d="M6.5 2.5 5 13.5M11 2.5 9.5 13.5M3 6h10.5M2.5 10h10.5"/>',
+    patch: '<path d="M10.5 2.5l3 3-8 8h-3v-3z"/><path d="M9 4l3 3"/>',
+    swap: '<path d="M2.5 5.5h10M10 3l2.5 2.5L10 8M13.5 10.5h-10M6 8l-2.5 2.5L6 13"/>',
+    reload: '<path d="M13 8a5 5 0 1 1-1.46-3.54"/><path d="M13 2.5v3h-3"/>',
+    down: '<path d="M8 2.5v11M3.5 9 8 13.5 12.5 9"/>',
+    up: '<path d="M8 13.5v-11M3.5 7 8 2.5 12.5 7"/>',
+    close: '<path d="M4 4l8 8M12 4l-8 8"/>',
+    export: '<path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M2.5 11.5v2h11v-2"/>',
+    compare: '<rect x="2" y="2.5" width="5" height="11" rx="1"/><rect x="9" y="2.5" width="5" height="11" rx="1"/><path d="M3.5 6h2M10.5 6h2M3.5 9h2M10.5 9h2"/>',
+    save: '<path d="M2.5 3.5a1 1 0 0 1 1-1h7l3 3v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/><path d="M5 2.5v3h5v-3M5 13.5v-4h6v4"/>',
+    process: '<rect x="2" y="2.5" width="4.5" height="4.5" rx=".5"/><rect x="9.5" y="9" width="4.5" height="4.5" rx=".5"/><path d="M6.5 4.75h3.25a2 2 0 0 1 2 2V9"/>',
+  };
+  const icon = (name) => `<svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+  /** 图标按钮；有 label 时工具栏宽裕时显示文字，紧凑时只剩图标 */
+  const ibtn = (id, ic, title, label = '', attrs = '') =>
+    `<button ${id ? `id="${id}" ` : ''}class="ib" title="${title}"${attrs}>${icon(ic)}${label ? `<span class="lbl">${label}</span>` : ''}</button>`;
+
   // ---------------- 数据访问 ----------------
   /** 第一个结束地址 > addr 的段下标 */
   function segFrom(segs, addr) {
@@ -407,7 +430,9 @@
       case 'PageDown': moveRows(viewRows(), ext); break;
       case 'Home': ctrl ? setCursor(firstAddr(), ext) : setCursor(S.sel.cursor - (S.sel.cursor % ROW), ext); break;
       case 'End': ctrl ? setCursor(lastAddr(), ext) : setCursor(S.sel.cursor - (S.sel.cursor % ROW) + ROW - S.unit, ext); break;
-      case 'Escape': S.sel.anchor = S.sel.cursor; render(); postSel(); updateStatus(); break;
+      case 'Escape':
+        if (findOpen()) { closeFind(); break; }
+        S.sel.anchor = S.sel.cursor; render(); postSel(); updateStatus(); break;
       case 'Tab': S.ascii = !S.ascii; S.nib = 0; render(); break;
       default:
         if (ctrl && e.key.toLowerCase() === 'a') { selectRange(firstAddr(), lastAddr() + S.unit); break; }
@@ -504,7 +529,9 @@
   }
   function setLe(le) {
     S.le = le;
-    $('endian').textContent = le ? t('Little-endian (LE)') : t('Big-endian (BE)');
+    const eb = $('endian');
+    eb.textContent = le ? 'LE' : 'BE';
+    eb.title = t('Byte order for 2/4-byte units and the inspector') + ': ' + (le ? t('Little-endian') : t('Big-endian'));
     render();
     updateInspector();
     postSel();
@@ -513,7 +540,11 @@
   function setReadOnly(ro) {
     S.readOnly = ro;
     const b = $('ro');
-    if (b) { b.textContent = ro ? t('🔒 Read-only') : t('✎ Read/Write'); b.classList.toggle('on', !ro); }
+    if (b) {
+      b.innerHTML = icon(ro ? 'lock' : 'unlock') + `<span class="lbl">${ro ? t('Read-only') : t('Read/Write')}</span>`;
+      b.classList.toggle('on', !ro);
+      fitToolbar();
+    }
     updateStatus();
     postSel();
   }
@@ -553,13 +584,13 @@
     const cs = $('findCase').classList.contains('on');
     const side = S.sel.side;
     S.find = { results: [], idx: -1, side };
-    if (!text) { $('findInfo').textContent = ''; render(); return; }
+    if (!text) { findInfo(''); render(); return; }
     let matcher;
     if (mode === 'regex') {
-      try { matcher = new RegExp(text, cs ? 'g' : 'gi'); } catch (err) { $('findInfo').textContent = t('Invalid regex'); return; }
+      try { matcher = new RegExp(text, cs ? 'g' : 'gi'); } catch (err) { findInfo(t('Invalid regex'), true); return; }
     } else {
       let pat = mode === 'hex' ? parseHexPattern(text) : Array.from(text, (c) => c.charCodeAt(0) & 0xff);
-      if (!pat) { $('findInfo').textContent = t('Invalid hex'); return; }
+      if (!pat) { findInfo(t('Invalid hex'), true); return; }
       if (mode === 'text' && !cs) pat = pat.map((c) => (c >= 0x41 && c <= 0x5a ? c + 32 : c));
       matcher = pat;
     }
@@ -581,7 +612,7 @@
           }
           if (ok) S.find.results.push({ addr: seg.address + i, len: n });
           if ((i & 0xffff) === 0 && performance.now() - last > 30) {
-            $('findInfo').textContent = t('{0} matches…', num(S.find.results.length));
+            findInfo(t('{0} matches…', num(S.find.results.length)));
             await new Promise((r) => setTimeout(r));
             last = performance.now();
             if (token !== findToken) return;
@@ -597,7 +628,7 @@
           S.find.results.push({ addr: seg.address + m.index, len: Math.max(1, m[0].length) });
           if (m[0].length === 0) matcher.lastIndex++;
           if (performance.now() - last > 30) {
-            $('findInfo').textContent = t('{0} matches…', num(S.find.results.length));
+            findInfo(t('{0} matches…', num(S.find.results.length)));
             await new Promise((r) => setTimeout(r));
             last = performance.now();
             if (token !== findToken) return;
@@ -606,7 +637,7 @@
       }
       if (S.find.results.length >= LIMIT) break;
     }
-    $('findInfo').textContent = S.find.results.length ? t('{0} matches', num(S.find.results.length) + (S.find.results.length >= LIMIT ? '+' : '')) : t('No results');
+    findInfo(S.find.results.length ? t('{0} matches', num(S.find.results.length) + (S.find.results.length >= LIMIT ? '+' : '')) : t('No results'), !S.find.results.length);
     if (S.find.results.length) findStep(1, true);
     else render();
   }
@@ -623,13 +654,60 @@
     }
     S.find.idx = i;
     const r = res[i];
-    $('findInfo').textContent = `${num(i + 1)}/${num(res.length)}`;
+    findInfo(`${num(i + 1)}/${num(res.length)}`);
     S.sel.side = S.find.side;
     S.ascii = false;
     selectRange(r.addr, r.addr + r.len);
     revealRow(addrToRow(r.addr), true);
   }
   let findTimer = 0;
+
+  // ---------------- 查找框 ----------------
+  const findEl = $('findWidget');
+  const findText = () => /** @type {HTMLInputElement} */ ($('findText'));
+  function findInfo(text, bad = false) {
+    const el = $('findInfo');
+    el.textContent = text;
+    el.classList.toggle('bad', bad);
+  }
+  function findOpen() { return !findEl.classList.contains('hidden'); }
+  function openFind() {
+    findEl.classList.remove('hidden');
+    const b = document.getElementById('findBtn');
+    if (b) b.classList.add('on');
+    findText().focus();
+    findText().select();
+    if (findText().value && !S.find.results.length) runFind();
+  }
+  /** 关闭时同 VS Code：清掉匹配高亮，保留输入文本，下次打开重新查找 */
+  function closeFind() {
+    findEl.classList.add('hidden');
+    const b = document.getElementById('findBtn');
+    if (b) b.classList.remove('on');
+    findToken++;
+    clearTimeout(findTimer);
+    S.find = { results: [], idx: -1, side: S.sel.side };
+    findInfo('');
+    render();
+    scroller.focus();
+  }
+  function buildFind() {
+    findEl.innerHTML = `<select id="findMode" title="${t('Find mode')}"><option value="hex">Hex</option><option value="text">${t('Text')}</option><option value="regex">${t('Regex')}</option></select>
+      <input id="findText" placeholder="${t('Find')}" title="${t('Hex mode: DE AD * EF; * or ?? matches any byte')}">
+      <button id="findCase" class="ib" title="${t('Match case')}">Aa</button><span id="findInfo"></span>
+      ${ibtn('findPrev', 'up', t('Previous (Shift+Enter)'))}${ibtn('findNext', 'down', t('Next (Enter)'))}${ibtn('findClose', 'close', t('Close (Escape)'))}`;
+    findText().addEventListener('input', () => { clearTimeout(findTimer); findTimer = setTimeout(runFind, 250); });
+    findText().addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); findStep(e.shiftKey ? -1 : 1, false); }
+      else if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
+    });
+    $('findMode').addEventListener('change', runFind);
+    $('findCase').addEventListener('click', () => { $('findCase').classList.toggle('on'); runFind(); });
+    $('findPrev').addEventListener('click', () => findStep(-1, false));
+    $('findNext').addEventListener('click', () => findStep(1, false));
+    $('findClose').addEventListener('click', closeFind);
+  }
+  buildFind();
 
   // ---------------- 数据检查器 ----------------
   function updateInspector() {
@@ -992,41 +1070,47 @@
     el.textContent = n === 0 ? t('No differences') : t('Difference {0}/{1} · {2} bytes', S.curBlock >= 0 ? S.curBlock + 1 : '-', num(n), num(S.diffBytes));
     /** @type {HTMLButtonElement} */ ($('prev')).disabled = n === 0;
     /** @type {HTMLButtonElement} */ ($('next')).disabled = n === 0;
+    fitToolbar();
   }
 
   // ---------------- 工具栏 ----------------
+  // 单行：左侧是视图设置（对比模式另有差异导航），右侧是查找、侧面板开关与文件操作。
+  // 查找在网格右上角的浮动查找框里。
   function buildToolbar(mode) {
-    const unitSeg = `<span class="seg" title="${t('Display unit (Ctrl+1/2/4)')}"><button data-unit="1">1</button><button data-unit="2">2</button><button data-unit="4">4</button></span>`;
-    const common = `<label>Go To</label><input id="goto" placeholder="${t('Address (hex)')}" title="${t('Hex address: 0800_1000 / 0x1000; #4096 for decimal; +10/-10 for relative offset (Ctrl+G)')}">
-      <span class="sep"></span>${unitSeg}<button id="endian" title="${t('Byte order for 2/4-byte units and the inspector')}"></button>`;
-    const find = `<span class="sep"></span><select id="findMode" title="${t('Find mode')}"><option value="hex">Hex</option><option value="text">${t('Text')}</option><option value="regex">${t('Regex')}</option></select>
-      <input id="findText" placeholder="${t('Find (Ctrl+F)')}" title="${t('Hex mode: DE AD * EF; * or ?? matches any byte')}"><button id="findCase" title="${t('Match case')}">Aa</button>
-      <button id="findPrev" title="${t('Previous (Shift+Enter)')}">▲</button><button id="findNext" title="${t('Next (Enter)')}">▼</button><span id="findInfo"></span>`;
+    const grp = (html, cls = '') => `<span class="grp${cls}">${html}</span>`;
+    const tabBtn = (tab, ic, title) => ibtn('', ic, title, TAB_NAMES[tab], ` data-tab="${tab}"`);
+    const view = grp(`<input id="goto" placeholder="${t('Go to (Ctrl+G)')}" title="${t('Hex address: 0800_1000 / 0x1000; #4096 for decimal; +10/-10 for relative offset (Ctrl+G)')}">`)
+      + grp(`<span class="seg" title="${t('Display unit (Ctrl+1/2/4)')}"><button data-unit="1">1</button><button data-unit="2">2</button><button data-unit="4">4</button></span>
+        <button id="endian"></button>${mode === 'edit' ? `<button id="ro" class="ib" title="${t('Toggle Read-only / Read/Write (Insert)')}"></button>` : ''}`);
+    const findBtn = ibtn('findBtn', 'search', t('Find (Ctrl+F)'));
     let h;
     if (mode === 'compare') {
-      h = `<span class="seg"><button data-filter="all" title="${t('Show all data')}">${t('✱ All')}</button><button data-filter="diff" title="${t('Show only differences (identical regions folded)')}">${t('≠ Differences')}</button></span>
-        <span class="sep"></span><button id="next" title="${t('Next difference (F8)')}">${t('⬇ Next')}</button><button id="prev" title="${t('Previous difference (Shift+F8)')}">${t('⬆ Previous')}</button><span id="diffInfo"></span>
-        <span class="sep"></span><button id="swap" title="${t('Swap left and right')}">${t('⇄ Swap')}</button><button id="reload" title="${t('Reload from disk (F5)')}">${t('⟳ Reload')}</button>
-        <span class="sep"></span>${common}${find}<span class="spacer"></span>
-        <span class="seg"><button data-tab="insp" title="${t('Data Inspector')}">${t('Inspector')}</button><button data-tab="sum" title="${t('CRC / checksum / hash (current side)')}">${t('Checksum')}</button></span>
-        <button id="report" title="${t('Export HTML comparison report')}">${t('Export report')}</button>`;
+      h = grp(`<span class="seg"><button data-filter="all" title="${t('Show all data')}">${t('All')}</button><button data-filter="diff" title="${t('Show only differences (identical regions folded)')}">${t('Differences')}</button></span>
+        ${ibtn('prev', 'up', t('Previous difference (Shift+F8)'))}${ibtn('next', 'down', t('Next difference (F8)'))}<span id="diffInfo"></span>`)
+        + grp(ibtn('swap', 'swap', t('Swap left and right'), t('Swap')) + ibtn('reload', 'reload', t('Reload from disk (F5)'), t('Reload')))
+        + view
+        + grp(findBtn + tabBtn('insp', 'insp', t('Data Inspector')) + tabBtn('sum', 'sum', t('CRC / checksum / hash (current side)')), ' end')
+        + grp(ibtn('report', 'export', t('Export HTML comparison report'), t('Export report')));
     } else {
-      h = `${common}${mode === 'edit' ? `<button id="ro" title="${t('Toggle Read-only / Read/Write (Insert)')}"></button>` : ''}${find}
-        <span class="spacer"></span>
-        <span class="seg"><button data-tab="insp" title="${t('Data Inspector')}">${t('Inspector')}</button><button data-tab="sum" title="${t('CRC / checksum / hash')}">${t('Checksum')}</button><button data-tab="patch" title="${t('Write checksums, version numbers, timestamps, serial numbers')}">${t('Patch')}</button></span>
-        <button id="procBtn" title="${t('Merge / offset / crop / fill / split to produce a new file')}">${t('Process…')}</button><button id="saveAs" title="${t('Save as another format')}">${t('Save As…')}</button><button id="cmpBtn" title="${t('Compare with another file')}">${t('Compare…')}</button>`;
+      h = view
+        + grp(findBtn + tabBtn('insp', 'insp', t('Data Inspector')) + tabBtn('sum', 'sum', t('CRC / checksum / hash'))
+          + tabBtn('patch', 'patch', t('Write checksums, version numbers, timestamps, serial numbers')), ' end')
+        + grp(ibtn('cmpBtn', 'compare', t('Compare with another file'), t('Compare…')) + ibtn('saveAs', 'save', t('Save as another format'), t('Save As…'))
+          + ibtn('procBtn', 'process', t('Merge / offset / crop / fill / split to produce a new file'), t('Process…')));
     }
-    $('toolbar').innerHTML = h;
+    $('toolbar').innerHTML = `<div class="tb">${h}</div>`;
     const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+    on('cmpBtn', () => post({ type: 'compareWith' }));
+    on('saveAs', () => post({ type: 'saveAs' }));
+    on('procBtn', () => post({ type: 'process' }));
     on('next', () => gotoBlock(1));
     on('prev', () => gotoBlock(-1));
     on('swap', () => post({ type: 'swap' }));
     on('reload', () => post({ type: 'reload' }));
     on('report', () => post({ type: 'report' }));
-    on('saveAs', () => post({ type: 'saveAs' }));
-    on('cmpBtn', () => post({ type: 'compareWith' }));
     on('ro', () => setReadOnly(!S.readOnly));
-    on('procBtn', () => post({ type: 'process' }));
+    on('findBtn', () => (findOpen() ? closeFind() : openFind()));
+    $('findBtn').classList.toggle('on', findOpen());
     document.querySelectorAll('#toolbar [data-tab]').forEach((b) => b.addEventListener('click', () => showTab(/** @type {any} */ (b).dataset.tab, true)));
     document.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => { setUnit(+(/** @type {any} */ (b).dataset.unit)); scroller.focus(); }));
     $('endian').addEventListener('click', () => setLe(!S.le));
@@ -1038,17 +1122,17 @@
         scroller.focus();
       } else if (e.key === 'Escape') scroller.focus();
     });
-    $('findText').addEventListener('input', () => { clearTimeout(findTimer); findTimer = setTimeout(runFind, 250); });
-    $('findText').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); findStep(e.shiftKey ? -1 : 1, false); }
-      else if (e.key === 'Escape') scroller.focus();
-    });
-    $('findMode').addEventListener('change', runFind);
-    $('findCase').addEventListener('click', () => { $('findCase').classList.toggle('on'); runFind(); });
-    $('findPrev').addEventListener('click', () => findStep(-1, false));
-    $('findNext').addEventListener('click', () => findStep(1, false));
     document.querySelectorAll('[data-filter]').forEach((b) => b.addEventListener('click', () => setFilter(/** @type {any} */ (b).dataset.filter)));
   }
+  /** 工具栏放不下时逐级收紧：先隐藏图标按钮的文字，仍放不下再允许换行 */
+  function fitToolbar() {
+    const tb = document.querySelector('#toolbar .tb');
+    if (!tb) return;
+    tb.classList.remove('compact', 'wrap');
+    if (tb.scrollWidth > tb.clientWidth) tb.classList.add('compact');
+    if (tb.scrollWidth > tb.clientWidth) tb.classList.add('wrap');
+  }
+  window.addEventListener('resize', fitToolbar);
   function toggleInspector() { showTab('insp', true); }
 
   // ---------------- 消息 ----------------
@@ -1064,7 +1148,7 @@
       case 'saved': S.edited.clear(); render(); break;
       case 'setUnit': setUnit(m.unit); break;
       case 'goto': gotoInput().focus(); gotoInput().select(); break;
-      case 'find': { const f = /** @type {HTMLInputElement} */ ($('findText')); f.focus(); f.select(); break; }
+      case 'find': openFind(); break;
       case 'selectRange': selectRange(m.start, m.end); break;
       case 'toggleReadOnly': if (S.mode === 'edit') { setReadOnly(!S.readOnly); flash(S.readOnly ? t('Switched to Read-only') : t('Switched to Read/Write')); } break;
       case 'toggleInspector': toggleInspector(); break;
@@ -1114,7 +1198,8 @@
     drawOverview();
     firstRow = keepAddr !== null ? addrToRow(keepAddr) : 0;
     scrollToRow(firstRow);
-    if (prev && /** @type {HTMLInputElement} */ ($('findText')).value) runFind();
+    if (prev && findOpen() && findText().value) runFind();
+    fitToolbar();
     initTools(m.tools, !prev);
     if (!prev) scroller.focus();
   }

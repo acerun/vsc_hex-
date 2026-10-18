@@ -96,9 +96,12 @@ export function webviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string
 <div id="toolbar"></div>
 <div id="main">
   <canvas id="overview"></canvas>
-  <div id="scroller" tabindex="0">
-    <div id="sticky" class="grid"><div id="head"></div><div id="rows"></div></div>
-    <div id="spacer"></div>
+  <div id="gridWrap">
+    <div id="scroller" tabindex="0">
+      <div id="sticky" class="grid"><div id="head"></div><div id="rows"></div></div>
+      <div id="spacer"></div>
+    </div>
+    <div id="findWidget" class="hidden"></div>
   </div>
   <div id="panel" class="hidden">
     <div id="resizer" title="${l10n.t('Drag to resize')}"></div>

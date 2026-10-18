@@ -20,13 +20,52 @@ html, body {
 body { display: flex; flex-direction: column; }
 
 /* ---------- 工具栏 ---------- */
+/* 单行工具栏：控件按功能分组（.grp），组的左边框作分隔线；放不下时由 fitToolbar() 逐级收紧：
+   .compact 隐藏图标按钮的文字，.wrap 允许在组之间换行。
+   .tb 左移 1px，让每行行首那组的边框被 #toolbar 的 overflow 裁掉 */
 #toolbar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
-  padding: 4px 8px; border-bottom: 1px solid var(--border);
+  padding: 3px 0; overflow: hidden; border-bottom: 1px solid var(--border);
   background: var(--vscode-editorWidget-background, transparent);
   user-select: none;
 }
-#toolbar .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+#toolbar .tb { display: flex; align-items: center; row-gap: 3px; margin-left: -1px; }
+#toolbar .tb.wrap { flex-wrap: wrap; }
+#toolbar .grp {
+  display: inline-flex; align-items: center; gap: 2px; flex: none;
+  padding: 0 6px; border-left: 1px solid var(--border);
+}
+/* 靠右的组与左侧隔着空白，不画分隔线 */
+#toolbar .grp.end { margin-left: auto; border-left-color: transparent; }
+#toolbar .tb.compact .ib .lbl { display: none; }
+#toolbar button, #toolbar input, #findWidget button, #findWidget input, #findWidget select { height: 24px; }
+#toolbar .seg button { height: 22px; }
+.ib { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 5px; min-width: 24px; }
+.ic { width: 16px; height: 16px; flex: none; }
+/* 工具栏与查找框里的开关按钮用 VS Code 输入选项的激活样式，比主按钮色轻 */
+#toolbar button.on, #findWidget button.on {
+  background: var(--vscode-inputOption-activeBackground, rgba(0, 127, 212, 0.4));
+  color: var(--vscode-inputOption-activeForeground, inherit);
+  border-color: var(--vscode-inputOption-activeBorder, transparent);
+}
+#toolbar .seg button.on { border-color: transparent; }
+#endian { font-family: var(--vscode-editor-font-family); min-width: 30px; }
+#diffInfo { padding: 0 6px; white-space: nowrap; }
+
+/* ---------- 查找框（浮在网格右上角，同 VS Code 编辑器） ---------- */
+#gridWrap { flex: 1; display: flex; position: relative; min-width: 0; }
+#findWidget {
+  position: absolute; top: 0; right: 18px; z-index: 5; max-width: calc(100% - 36px);
+  display: flex; align-items: center; gap: 2px; padding: 4px 6px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-editorWidget-foreground, inherit);
+  border: 1px solid var(--vscode-editorWidget-border, var(--border)); border-top: none; border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  user-select: none;
+}
+#findWidget select { flex: none; }
+#findWidget #findText { width: 220px; flex: 0 1 220px; min-width: 60px; margin-right: 2px; }
+#findInfo { min-width: 72px; padding: 0 4px; font-size: 12px; white-space: nowrap; color: var(--muted); }
+#findInfo.bad { color: var(--vscode-errorForeground, #f14c4c); }
 #toolbar label { color: var(--muted); }
 button {
   font: inherit; color: var(--vscode-foreground); background: transparent;
@@ -44,9 +83,9 @@ input, select {
   border: 1px solid var(--vscode-input-border, var(--border)); border-radius: 2px; padding: 2px 4px;
 }
 input:focus, select:focus { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
-#goto { width: 110px; font-family: var(--vscode-editor-font-family); }
-#findText { width: 180px; font-family: var(--vscode-editor-font-family); }
-#findInfo, #diffInfo { color: var(--muted); min-width: 70px; }
+#goto { width: 120px; font-family: var(--vscode-editor-font-family); }
+#findText { font-family: var(--vscode-editor-font-family); }
+#diffInfo { color: var(--muted); }
 .spacer { flex: 1; }
 
 /* ---------- 主区域 ---------- */
