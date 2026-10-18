@@ -2,7 +2,7 @@
   "name": "hexplusplus",
   "displayName": "Hex++",
   "description": "%description%",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "runm",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -93,6 +93,9 @@
       { "command": "HexPlusPlus.unit4", "title": "%cmd.unit4%", "category": "Hex++" },
       { "command": "HexPlusPlus.toggleReadOnly", "title": "%cmd.toggleReadOnly%", "category": "Hex++" },
       { "command": "HexPlusPlus.toggleInspector", "title": "%cmd.toggleInspector%", "category": "Hex++" },
+      { "command": "HexPlusPlus.checksum", "title": "%cmd.checksum%", "category": "Hex++" },
+      { "command": "HexPlusPlus.patch", "title": "%cmd.patch%", "category": "Hex++" },
+      { "command": "HexPlusPlus.process", "title": "%cmd.process%", "category": "Hex++" },
       { "command": "HexPlusPlus.compare.next", "title": "%cmd.compare.next%", "category": "Hex++" },
       { "command": "HexPlusPlus.compare.prev", "title": "%cmd.compare.prev%", "category": "Hex++" },
       { "command": "HexPlusPlus.compare.swap", "title": "%cmd.compare.swap%", "category": "Hex++" },
@@ -104,7 +107,8 @@
         { "command": "HexPlusPlus.open", "when": "!explorerResourceIsFolder", "group": "navigation@90" },
         { "command": "HexPlusPlus.compareSelected", "when": "listDoubleSelection && !explorerResourceIsFolder", "group": "3_compare@90" },
         { "command": "HexPlusPlus.compareWith", "when": "!listDoubleSelection && !explorerResourceIsFolder", "group": "3_compare@91" },
-        { "command": "HexPlusPlus.saveAs", "when": "!explorerResourceIsFolder", "group": "7_modification@90" }
+        { "command": "HexPlusPlus.saveAs", "when": "!explorerResourceIsFolder", "group": "7_modification@90" },
+        { "command": "HexPlusPlus.process", "when": "!explorerResourceIsFolder", "group": "7_modification@91" }
       ],
       "editor/title": [
         { "command": "HexPlusPlus.compareWith", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./", "group": "navigation@90" }
@@ -118,9 +122,12 @@
         { "command": "HexPlusPlus.unit2", "when": "webviewSection == 'hexpp'", "group": "2_unit@2" },
         { "command": "HexPlusPlus.unit4", "when": "webviewSection == 'hexpp'", "group": "2_unit@3" },
         { "command": "HexPlusPlus.fill", "when": "webviewSection == 'hexpp' && webviewId == 'HexPlusPlus.hexEdit'", "group": "3_edit@1" },
+        { "command": "HexPlusPlus.checksum", "when": "webviewSection == 'hexpp'", "group": "3_edit@2" },
+        { "command": "HexPlusPlus.patch", "when": "webviewSection == 'hexpp' && webviewId == 'HexPlusPlus.hexEdit'", "group": "3_edit@3" },
         { "command": "HexPlusPlus.goTo", "when": "webviewSection == 'hexpp'", "group": "4_nav@1" },
         { "command": "HexPlusPlus.selectRange", "when": "webviewSection == 'hexpp'", "group": "4_nav@2" },
         { "command": "HexPlusPlus.saveAs", "when": "webviewSection == 'hexpp'", "group": "5_file@1" },
+        { "command": "HexPlusPlus.process", "when": "webviewSection == 'hexpp' && webviewId != 'HexPlusPlus.compare'", "group": "5_file@3" },
         { "command": "HexPlusPlus.compareWith", "when": "webviewSection == 'hexpp'", "group": "5_file@2" }
       ],
       "commandPalette": [
@@ -138,6 +145,8 @@
         { "command": "HexPlusPlus.unit4", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
         { "command": "HexPlusPlus.toggleReadOnly", "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/" },
         { "command": "HexPlusPlus.toggleInspector", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
+        { "command": "HexPlusPlus.checksum", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
+        { "command": "HexPlusPlus.patch", "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/" },
         { "command": "HexPlusPlus.compare.next", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },
         { "command": "HexPlusPlus.compare.prev", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },
         { "command": "HexPlusPlus.compare.swap", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },

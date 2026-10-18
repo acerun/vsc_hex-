@@ -20,10 +20,15 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
 | --- | --- |
 | `src/formats/` | 纯逻辑：各格式解析/写出，统一为 `MemoryImage`（按地址排序、互不重叠的段） |
 | `src/copyAs.ts` `src/diff.ts` `src/layout.ts` `src/report.ts` | 纯逻辑：复制格式、逐字节对比、行布局（空洞/折叠）、HTML 报告 |
+| `src/checksum.ts` `src/patch.ts` `src/transform.ts` `src/numbers.ts` | 纯逻辑：CRC/校验和/哈希、写入补丁、映像加工流水线、地址/数值输入解析 |
 | `src/hexEditor.ts` | 自定义编辑器 `HexPlusPlus.hexEdit`（读写）/ `HexPlusPlus.view`（只读） |
 | `src/compare.ts` | 对比面板 `HexPlusPlus.compare` |
 | `src/convert.ts` `src/copyCmd.ts` `src/extension.ts` `src/webview.ts` | 另存为、复制命令、命令注册、webview 公共部分 |
-| `media/hexview.js` `media/hexview.css` | webview 前端：编辑/查看/对比共用一套虚拟滚动网格 |
+| `src/tools.ts` | 侧面板「校验」「补丁」的扩展侧消息处理 |
+| `src/processPanel.ts` | 固件加工面板 `HexPlusPlus.process` |
+| `media/hexview.js` `media/hexview.css` | webview 前端：编辑/查看/对比共用一套虚拟滚动网格与侧面板 |
+| `media/toolsui.js` `media/tools.css` | 侧面板与加工面板共用的卡片列表、表单字段、弹出菜单 |
+| `media/process.js` `media/process.css` | 固件加工面板前端 |
 | `test/` | 单元测试（只测纯逻辑，不依赖 vscode） |
 | `images/` | 扩展图标（`icon.svg` 为源文件）与 README 截图（不打入 vsix） |
 | `Reference/` | UI 参考截图与测试固件 `1_PFlash.bin` / `2_PFlash.bin` |
@@ -34,6 +39,8 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
 - 布局（`Run` 列表）、差异块由扩展侧计算，webview 只负责渲染与交互。
 - 传给 webview 的字节必须是纯 `Uint8Array`（Node `Buffer` 经 postMessage 后不再是类型化数组）。
 - 用户可见文案用中文；命令标题走 `package.nls.json` / `package.nls.zh-cn.json`。
+- 补丁 / 加工步骤的字段保存用户输入的原始文本，由扩展侧纯模块解析，出错时抛 `FieldError(field)` 让界面高亮对应输入框。
+- webview CSP 只允许 `cspSource` 样式：HTML 字符串里不能写 `style="..."`，动态样式用 `el.style` 设置。
 - 地址显示格式 `0000_0000`；2/4 字节单元与数据检查器的字节序由 `HexPlusPlus.littleEndian` 控制。
 
 ## 功能
@@ -83,4 +90,9 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
 - 工具栏：全部 / 差异、下一个 `F8` / 上一个 `Shift+F8`、交换、重载 `F5`、导出 HTML 报告。
 - 按地址逐字节比较，支持不同格式（如 `.hex` 与 `.elf`）；一侧有数据另一侧为空洞也算差异。
 - "差异"视图保留差异前后 64 字节，≥256 字节的相同区域折叠为一行；左侧概览条可点击跳转。
+
+**校验 / 补丁 / 加工**（侧面板「校验」「补丁」，独立的「固件加工」面板）
+- 校验：16 种 CRC 预设（含按小端 32 位字输入的 CRC-32/STM32）+ 自定义 CRC、各类校验和、MD5/SHA-1/SHA-256；范围为选区 / 全部 / 自定义（结束含，或 `+长度`），空洞填充或跳过。
+- 补丁：校验值、数值、序列号、时间戳、文本、字节序列，按顺序规划后一次写入（一个撤销步骤）；只能写已有字节；方案按文件存在 `workspaceState`。
+- 加工：输入偏移 → 合并 → 步骤 → 输出 / 拆分，不修改输入映像；方案 `.hexpp.json` 中路径相对方案文件。
 - 对比读取的是磁盘文件，不含编辑器中未保存的修改。

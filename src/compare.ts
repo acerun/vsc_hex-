@@ -6,6 +6,7 @@ import { layoutDiffOnly, layoutRanges } from './layout';
 import { buildReport } from './report';
 import { HexTarget, Selection, defaultSelection, sidePayload, webviewHtml, trackActive, untrack, showWarnings } from './webview';
 import { copySelection } from './copyCmd';
+import { handleToolMessage, toolsPayload } from './tools';
 
 interface Side {
   uri: vscode.Uri;
@@ -50,6 +51,7 @@ export class ComparePanel {
           case 'showWarnings':
             this.sides.forEach(s => s.image.warnings.length && showWarnings(s.uri.fsPath, s.image.warnings));
             break;
+          default: await handleToolMessage(this.target, m);
         }
       }),
     ];
@@ -99,6 +101,7 @@ export class ComparePanel {
       layouts: { all: layoutRanges(d.union), diff: layoutDiffOnly(d.blocks, d.union) },
       blocks: d.blocks,
       diffBytes: d.diffBytes,
+      tools: toolsPayload(undefined, false),
     });
   }
 

@@ -7,6 +7,8 @@ import {
 } from './webview';
 import { copySelection } from './copyCmd';
 import { saveAsFormat, exportOptions } from './convert';
+import { handleToolMessage, toolsPayload } from './tools';
+import { ProcessPanel } from './processPanel';
 
 export class HexDocument implements vscode.CustomDocument {
   /** 每次从磁盘整体重载后递增，使旧的撤销/重做闭包失效 */
@@ -50,23 +52,35 @@ export class HexDocument implements vscode.CustomDocument {
 
   /** 记录一次编辑并通知 VS Code（进入撤销栈、置脏） */
   edit(addr: number, after: Uint8Array, notify: boolean, emitter: vscode.EventEmitter<vscode.CustomDocumentEditEvent<HexDocument>>, label: string) {
-    const before = readBytes(this.image, addr, addr + after.length);
-    if (before.length !== after.length) {
-      return; // 跨越空洞，忽略
+    this.editMany([{ address: addr, bytes: after }], notify, emitter, label);
+  }
+
+  /** 多处写入合并为一个撤销步骤；跨越空洞的写入被忽略 */
+  editMany(writes: { address: number; bytes: Uint8Array }[], notify: boolean,
+    emitter: vscode.EventEmitter<vscode.CustomDocumentEditEvent<HexDocument>>, label: string) {
+    const steps = writes
+      .map(w => ({ addr: w.address, after: w.bytes, before: readBytes(this.image, w.address, w.address + w.bytes.length) }))
+      .filter(x => x.before.length === x.after.length);
+    if (!steps.length) {
+      return;
     }
-    before.forEach((v, i) => {
-      if (!this.baseline.has(addr + i)) {
-        this.baseline.set(addr + i, v);
-      }
-    });
-    this.apply(addr, after, notify);
+    for (const x of steps) {
+      x.before.forEach((v, i) => {
+        if (!this.baseline.has(x.addr + i)) {
+          this.baseline.set(x.addr + i, v);
+        }
+      });
+      // 先取 before 再写：同一列表中后面的写入可能覆盖前面的
+      x.before = readBytes(this.image, x.addr, x.addr + x.after.length);
+      this.apply(x.addr, x.after, notify);
+    }
     this.pos++;
     const gen = this.generation;
     emitter.fire({
       document: this,
       label,
-      undo: () => { if (gen === this.generation) { this.apply(addr, before, true); this.pos--; } },
-      redo: () => { if (gen === this.generation) { this.apply(addr, after, true); this.pos++; } },
+      undo: () => { if (gen === this.generation) { [...steps].reverse().forEach(x => this.apply(x.addr, x.before, true)); this.pos--; } },
+      redo: () => { if (gen === this.generation) { steps.forEach(x => this.apply(x.addr, x.after, true)); this.pos++; } },
     });
   }
 
@@ -152,6 +166,7 @@ function setupPanel(ctx: vscode.ExtensionContext, doc: HexDocument, panel: vscod
       const data = new Uint8Array(end - start).map((_, i) => pattern[i % pattern.length]);
       doc.edit(start, data, true, emitter, '填充');
     }),
+    applyWrites: emitter && ((writes, label) => doc.editMany(writes, true, emitter, label)),
   };
 
   const sendInit = () => panel.webview.postMessage({
@@ -163,6 +178,7 @@ function setupPanel(ctx: vscode.ExtensionContext, doc: HexDocument, panel: vscod
     sides: [sidePayload(doc.image, doc.uri)],
     layouts: { all: layoutRanges(doc.image.segments.map(s => ({ start: s.address, end: s.address + s.data.length }))) },
     edited: [...doc.baseline].filter(([a, v]) => readBytes(doc.image, a, a + 1)[0] !== v).map(([a]) => a),
+    tools: toolsPayload(doc.uri, editable),
   });
 
   const subs: vscode.Disposable[] = [
@@ -181,6 +197,8 @@ function setupPanel(ctx: vscode.ExtensionContext, doc: HexDocument, panel: vscod
         case 'saveAs': await saveAsFormat(doc.uri, doc.image); break;
         case 'compareWith': await vscode.commands.executeCommand('HexPlusPlus.compareWith', doc.uri); break;
         case 'showWarnings': showWarnings(doc.uri.fsPath, doc.image.warnings); break;
+        case 'process': ProcessPanel.open(ctx, [{ uri: doc.uri, image: doc.image }]); break;
+        default: await handleToolMessage(target, m);
       }
     }),
   ];

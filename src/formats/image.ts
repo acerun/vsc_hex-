@@ -118,6 +118,16 @@ export function writeBytes(img: MemoryImage, addr: number, bytes: Uint8Array): U
   return old;
 }
 
+/** [start, end) 是否全部有数据（不含空洞） */
+export function isCovered(img: MemoryImage, start: number, end: number): boolean {
+  return readPieces(img, start, end).reduce((n, p) => n + p.data.length, 0) === end - start;
+}
+
+/** 深拷贝段数据，其余字段浅拷贝 */
+export function cloneImage(img: MemoryImage): MemoryImage {
+  return { ...img, segments: img.segments.map(s => ({ address: s.address, data: s.data.slice() })), warnings: [...img.warnings] };
+}
+
 /** 展平为连续缓冲区，空洞用 fill 填充。 */
 export function flatten(img: MemoryImage, fill: number): { base: number; data: Uint8Array } {
   const r = imageRange(img);

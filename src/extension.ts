@@ -4,9 +4,12 @@ import { ComparePanel } from './compare';
 import { activeTarget } from './webview';
 import { copyOffset, copySelection, copySelectionAs, initCopy } from './copyCmd';
 import { saveAsFormat } from './convert';
+import { initTools } from './tools';
+import { ProcessPanel } from './processPanel';
 
 export function activate(ctx: vscode.ExtensionContext) {
   initCopy(ctx);
+  initTools(ctx);
   const cmd = (id: string, fn: (...args: any[]) => unknown) => ctx.subscriptions.push(vscode.commands.registerCommand(id, fn));
 
   ctx.subscriptions.push(
@@ -137,6 +140,18 @@ export function activate(ctx: vscode.ExtensionContext) {
       t.fill(t.selection.start, t.selection.end, pattern);
     }
   }));
+
+  cmd('HexPlusPlus.checksum', () => post({ type: 'openTab', tab: 'sum' }));
+  cmd('HexPlusPlus.patch', () => post({ type: 'openTab', tab: 'patch' }));
+  cmd('HexPlusPlus.process', async (arg?: unknown, uris?: vscode.Uri[]) => {
+    const t = activeTarget();
+    if (!(arg instanceof vscode.Uri) && t?.docUri) {
+      // 来自 Hex++ 编辑器：包含未保存的修改
+      return ProcessPanel.open(ctx, [{ uri: t.docUri, image: t.imageOf(0) }]);
+    }
+    const list = uris?.length ? uris : arg instanceof vscode.Uri ? [arg] : [];
+    ProcessPanel.open(ctx, list.map(uri => ({ uri })));
+  });
 
   cmd('HexPlusPlus.compare.next', () => post({ type: 'next' }));
   cmd('HexPlusPlus.compare.prev', () => post({ type: 'prev' }));
