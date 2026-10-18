@@ -52,15 +52,18 @@ Hex++ 提供两种打开方式：
 2. 对已经打开的文件：点击编辑器标签右键或命令面板 → **重新打开编辑器的方式…**（Reopen Editor With…）→ 选择 Hex++。
 3. 命令面板（`Ctrl+Shift+P`）→ **Hex++: 用 Hex++ 打开**。
 
-> 💡 **让某类文件默认用 Hex++ 打开**：在 `settings.json` 中添加
+> 💡 **默认打开方式**：`.bin` `.hex` `.ihex` `.ihx` `.srec` `.s19` `.s28` `.s37` `.mot` `.elf` 双击即用 Hex++ 编辑器打开（`.txt` 不在其中，TI-TXT 需手动选择）。
+> 其他扩展名或想改为只读查看，可在 `settings.json` 中覆盖：
 >
 > ```json
 > "workbench.editorAssociations": {
->   "*.hex": "HexPlusPlus.hexEdit",
->   "*.s19": "HexPlusPlus.hexEdit",
->   "*.bin": "HexPlusPlus.view"
+>   "*.txt": "HexPlusPlus.hexEdit",
+>   "*.bin": "HexPlusPlus.view",
+>   "*.hex": "default"
 > }
 > ```
+>
+> `"default"` 表示改回 VS Code 自带的文本编辑器。
 
 界面组成：
 

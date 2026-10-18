@@ -22,7 +22,7 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
 | `src/formats/` | 纯逻辑：各格式解析/写出，统一为 `MemoryImage`（按地址排序、互不重叠的段） |
 | `src/copyAs.ts` `src/diff.ts` `src/layout.ts` `src/report.ts` | 纯逻辑：复制格式、逐字节对比、行布局（空洞/折叠）、HTML 报告 |
 | `src/checksum.ts` `src/patch.ts` `src/transform.ts` `src/numbers.ts` | 纯逻辑：CRC/校验和/哈希、写入补丁、映像加工流水线、地址/数值输入解析 |
-| `src/hexEditor.ts` | 自定义编辑器 `HexPlusPlus.hexEdit`（读写）/ `HexPlusPlus.view`（只读） |
+| `src/hexEditor.ts` | 自定义编辑器 `HexPlusPlus.hexEdit`（读写）/ `HexPlusPlus.view`（只读）/ `HexPlusPlus.firmware`（同 hexEdit，固件扩展名默认打开） |
 | `src/compare.ts` | 对比面板 `HexPlusPlus.compare` |
 | `src/convert.ts` `src/copyCmd.ts` `src/extension.ts` `src/webview.ts` | 另存为、复制命令、命令注册、webview 公共部分 |
 | `src/tools.ts` | 侧面板「校验」「补丁」的扩展侧消息处理 |
@@ -48,6 +48,7 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
   - `test/l10n.test.ts` 检查：译文齐全、无多余条目、代码中（注释除外）无残留中文。
 - 补丁 / 加工步骤的字段保存用户输入的原始文本，由扩展侧纯模块解析，出错时抛 `FieldError(field)` 让界面高亮对应输入框。
 - webview CSP 只允许 `cspSource` 样式：HTML 字符串里不能写 `style="..."`，动态样式用 `el.style` 设置。
+- 读写编辑器有两个 viewType（`hexEdit` 匹配 `*`、priority option；`firmware` 匹配固件扩展名、priority default），`package.json` 里限定读写的 `when` 条件用 `/^HexPlusPlus\\.(hexEdit|firmware)$/`。
 - 地址显示格式 `0000_0000`；2/4 字节单元与数据检查器的字节序由 `HexPlusPlus.littleEndian` 控制。
 
 ## 功能

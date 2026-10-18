@@ -13,6 +13,7 @@
 ### 变更
 
 - 数据检查器移入可调整宽度的侧面板，与「校验」「补丁」同在一处。
+- `.bin` `.hex` `.ihex` `.ihx` `.srec` `.s19` `.s28` `.s37` `.mot` `.elf` 默认用 Hex++ 编辑器打开（`.txt` 除外）；可用 `workbench.editorAssociations` 覆盖。
 
 ## [1.0.0] - 2026-10-14
 

@@ -69,6 +69,43 @@
         "priority": "option"
       },
       {
+        "viewType": "HexPlusPlus.firmware",
+        "displayName": "Hex++ Editor (firmware)",
+        "selector": [
+          {
+            "filenamePattern": "*.bin"
+          },
+          {
+            "filenamePattern": "*.hex"
+          },
+          {
+            "filenamePattern": "*.ihex"
+          },
+          {
+            "filenamePattern": "*.ihx"
+          },
+          {
+            "filenamePattern": "*.srec"
+          },
+          {
+            "filenamePattern": "*.s19"
+          },
+          {
+            "filenamePattern": "*.s28"
+          },
+          {
+            "filenamePattern": "*.s37"
+          },
+          {
+            "filenamePattern": "*.mot"
+          },
+          {
+            "filenamePattern": "*.elf"
+          }
+        ],
+        "priority": "default"
+      },
+      {
         "viewType": "HexPlusPlus.view",
         "displayName": "Hex++ Viewer (read-only)",
         "selector": [
@@ -284,7 +321,7 @@
         },
         {
           "command": "HexPlusPlus.fill",
-          "when": "webviewSection == 'hexpp' && webviewId == 'HexPlusPlus.hexEdit'",
+          "when": "webviewSection == 'hexpp' && webviewId =~ /^HexPlusPlus\\.(hexEdit|firmware)$/",
           "group": "3_edit@1"
         },
         {
@@ -294,7 +331,7 @@
         },
         {
           "command": "HexPlusPlus.patch",
-          "when": "webviewSection == 'hexpp' && webviewId == 'HexPlusPlus.hexEdit'",
+          "when": "webviewSection == 'hexpp' && webviewId =~ /^HexPlusPlus\\.(hexEdit|firmware)$/",
           "group": "3_edit@3"
         },
         {
@@ -354,7 +391,7 @@
         },
         {
           "command": "HexPlusPlus.fill",
-          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.(hexEdit|firmware)$/"
         },
         {
           "command": "HexPlusPlus.find",
@@ -374,7 +411,7 @@
         },
         {
           "command": "HexPlusPlus.toggleReadOnly",
-          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.(hexEdit|firmware)$/"
         },
         {
           "command": "HexPlusPlus.toggleInspector",
@@ -386,7 +423,7 @@
         },
         {
           "command": "HexPlusPlus.patch",
-          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.(hexEdit|firmware)$/"
         },
         {
           "command": "HexPlusPlus.compare.next",
@@ -451,12 +488,12 @@
         "command": "HexPlusPlus.fill",
         "key": "ctrl+i",
         "mac": "cmd+i",
-        "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\.(hexEdit|firmware)$/"
       },
       {
         "command": "HexPlusPlus.toggleReadOnly",
         "key": "insert",
-        "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\.(hexEdit|firmware)$/"
       },
       {
         "command": "HexPlusPlus.compare.next",

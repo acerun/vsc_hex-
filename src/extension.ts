@@ -22,6 +22,11 @@ export function activate(ctx: vscode.ExtensionContext) {
       webviewOptions: { retainContextWhenHidden: true },
       supportsMultipleEditorsPerDocument: false,
     }),
+    // 独立实例：VS Code 按 viewType 查找文档，共用 changeEmitter 会让另一个注册找不到文档而报错
+    vscode.window.registerCustomEditorProvider(HexEditorProvider.firmwareViewType, new HexEditorProvider(ctx), {
+      webviewOptions: { retainContextWhenHidden: true },
+      supportsMultipleEditorsPerDocument: false,
+    }),
     vscode.window.registerCustomEditorProvider(HexViewProvider.viewType, new HexViewProvider(ctx), {
       webviewOptions: { retainContextWhenHidden: true },
     }),

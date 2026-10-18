@@ -1,4 +1,4 @@
-// 自定义编辑器：HexPlusPlus.hexEdit（读写，撤销/重做/保存/备份/磁盘变更检测）与 HexPlusPlus.view（只读）。
+// 自定义编辑器：HexPlusPlus.hexEdit / HexPlusPlus.firmware（读写，撤销/重做/保存/备份/磁盘变更检测）与 HexPlusPlus.view（只读）。
 import * as vscode from 'vscode';
 import * as l10n from '@vscode/l10n';
 import { FormatId, MemoryImage, parseImage, serializeImage, readBytes, writeBytes } from './formats';
@@ -214,6 +214,8 @@ function setupPanel(ctx: vscode.ExtensionContext, doc: HexDocument, panel: vscod
 
 export class HexEditorProvider implements vscode.CustomEditorProvider<HexDocument> {
   static readonly viewType = 'HexPlusPlus.hexEdit';
+  /** 同一编辑器的另一个 viewType：仅匹配固件扩展名，priority 为 default（双击默认打开） */
+  static readonly firmwareViewType = 'HexPlusPlus.firmware';
   private readonly changeEmitter = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<HexDocument>>();
   readonly onDidChangeCustomDocument = this.changeEmitter.event;
 
