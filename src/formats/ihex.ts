@@ -1,4 +1,5 @@
 // Intel HEX：00 数据、01 结束、02 扩展段地址、03 段起始、04 扩展线性地址、05 线性起始。
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, Segment, normalize, hex, imageRange } from './image';
 import { hexToBytes } from './srec';
 
@@ -13,19 +14,19 @@ export function parseIhex(text: string): MemoryImage {
     if (line === '') {
       continue;
     }
-    const where = `第 ${ln + 1} 行`;
+    const where = l10n.t('Line {0}', ln + 1);
     if (line[0] !== ':') {
-      warnings.push(`${where}: 缺少起始冒号，已忽略`);
+      warnings.push(l10n.t('{0}: missing start colon, ignored', where));
       continue;
     }
     const bytes = hexToBytes(line.slice(1));
     if (!bytes || bytes.length < 5 || bytes[0] !== bytes.length - 5) {
-      warnings.push(`${where}: 记录长度错误`);
+      warnings.push(l10n.t('{0}: invalid record length', where));
       continue;
     }
     const sum = bytes.reduce((a, b) => a + b, 0);
     if ((sum & 0xff) !== 0) {
-      warnings.push(`${where}: 校验和错误`);
+      warnings.push(l10n.t('{0}: checksum error', where));
     }
     const offset = (bytes[1] << 8) | bytes[2];
     const type = bytes[3];
@@ -43,7 +44,7 @@ export function parseIhex(text: string): MemoryImage {
     } else if (type === 0x05 && data.length === 4) {
       entry = ((data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3]) >>> 0;
     } else {
-      warnings.push(`${where}: 不支持的记录类型 ${hex(type, 2)}`);
+      warnings.push(l10n.t('{0}: unsupported record type {1}', where, hex(type, 2)));
     }
   }
   return { format: 'ihex', segments: normalize(chunks), entry, warnings };
@@ -52,7 +53,7 @@ export function parseIhex(text: string): MemoryImage {
 export function writeIhex(img: MemoryImage, recordLength = 16): string {
   const r = imageRange(img);
   if (r && r.end - 1 > 0xffffffff) {
-    throw new Error('Intel HEX 仅支持 32 位地址');
+    throw new Error(l10n.t('Intel HEX only supports 32-bit addresses'));
   }
   const out: string[] = [];
   let upper = -1;

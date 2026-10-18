@@ -1,5 +1,6 @@
 // webview 公共部分：HTML 模板、传给前端的数据结构、当前活动视图的登记。
 import * as vscode from 'vscode';
+import * as l10n from '@vscode/l10n';
 import { FORMAT_INFO, MemoryImage, hex, imageSize } from './formats';
 
 export interface Selection {
@@ -66,16 +67,24 @@ export function sidePayload(img: MemoryImage, uri: vscode.Uri, meta = '') {
     name: uri.path.split('/').pop() ?? uri.toString(),
     path: uri.scheme === 'file' ? uri.fsPath : uri.toString(),
     meta,
-    info: `${FORMAT_INFO[img.format].label} · ${segs.length} 段 · ${size.toLocaleString('en-US')} 字节${range}`,
+    info: l10n.t('{0} · {1} segments · {2} bytes{3}', FORMAT_INFO[img.format].label, segs.length, size.toLocaleString('en-US'), range),
     warnings: img.warnings,
   };
 }
 
+/** webview 的 html lang 与翻译表：前端用 HexppTools.t() 查表（未翻译时显示英文原文） */
+export function webviewL10n(nonce: string): { lang: string; script: string } {
+  // `<` 转义，防止翻译文本中出现 </script> 提前结束脚本
+  const json = JSON.stringify(vscode.l10n.bundle ?? {}).replace(/</g, '\\u003c');
+  return { lang: vscode.env.language, script: `<script nonce="${nonce}">window.HEXPP_L10N = ${json};</script>` };
+}
+
 export function webviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   const nonce = Array.from({ length: 24 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
+  const wl = webviewL10n(nonce);
   const media = (f: string) => webview.asWebviewUri(vscode.Uri.joinPath(extUri, 'media', f));
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${wl.lang}">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
@@ -92,7 +101,7 @@ export function webviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string
     <div id="spacer"></div>
   </div>
   <div id="panel" class="hidden">
-    <div id="resizer" title="拖动调整宽度"></div>
+    <div id="resizer" title="${l10n.t('Drag to resize')}"></div>
     <div id="tabs"></div>
     <div id="inspector" class="pane"></div>
     <div id="sumPane" class="pane"></div>
@@ -100,6 +109,7 @@ export function webviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string
   </div>
 </div>
 <div id="status"></div>
+${wl.script}
 <script nonce="${nonce}" src="${media('toolsui.js')}"></script>
 <script nonce="${nonce}" src="${media('hexview.js')}"></script>
 </body>

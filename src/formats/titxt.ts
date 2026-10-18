@@ -1,4 +1,5 @@
 // TI-TXT：`@地址` 行设置地址，随后为空格分隔的十六进制字节，`q` 结束。
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, Segment, normalize, hex } from './image';
 
 export function parseTiTxt(text: string): MemoryImage {
@@ -24,7 +25,7 @@ export function parseTiTxt(text: string): MemoryImage {
         flush();
         addr = parseInt(tok.slice(1), 16);
         if (isNaN(addr)) {
-          warnings.push(`第 ${ln + 1} 行: 地址无效`);
+          warnings.push(l10n.t('Line {0}: invalid address', ln + 1));
           addr = 0;
         }
         curAddr = addr;
@@ -34,7 +35,7 @@ export function parseTiTxt(text: string): MemoryImage {
         cur.push(parseInt(tok, 16));
         addr++;
       } else {
-        warnings.push(`第 ${ln + 1} 行: 无法识别 "${tok}"`);
+        warnings.push(l10n.t('Line {0}: unrecognized "{1}"', ln + 1, tok));
       }
     }
   }

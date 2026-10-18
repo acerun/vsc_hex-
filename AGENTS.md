@@ -8,11 +8,12 @@ UI 参考：对比界面参考 Beyond Compare，查看界面参考 J-Flash。
 ```bash
 npm install
 npm test        # tsc 编译 + node --test 运行 out/test/*.test.js
-npm run package # 打包 vsix
+npm run package # 打包 vsix（含运行时依赖 @vscode/l10n；.vscodeignore 在 node_modules 中只放行它）
 ./update-extension.ps1  # 编译 + 打包 + 安装到本机 VS Code
 ```
 
-F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 `Reference/` 作为测试目录。
+F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 `Reference/` 作为测试目录，界面语言跟随当前 VS Code。
+按语言测试：运行任务「Run Hex++ (English)」/「Run Hex++ (中文)」（`code --locale` 另起独立实例，用 `.vscode-test/` 下的独立用户目录；F5 的调试窗口与当前 VS Code 共用主进程，`--locale` 无效）。
 
 ## 目录结构
 
@@ -29,6 +30,8 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
 | `media/hexview.js` `media/hexview.css` | webview 前端：编辑/查看/对比共用一套虚拟滚动网格与侧面板 |
 | `media/toolsui.js` `media/tools.css` | 侧面板与加工面板共用的卡片列表、表单字段、弹出菜单 |
 | `media/process.js` `media/process.css` | 固件加工面板前端 |
+| `l10n/` | 中文翻译包 `bundle.l10n.zh-cn.json` |
+| `.vscode-test/` | 按语言测试时的独立用户目录（不提交、不打包） |
 | `test/` | 单元测试（只测纯逻辑，不依赖 vscode） |
 | `images/` | 扩展图标（`icon.svg` 为源文件）与 README 截图（不打入 vsix） |
 | `Reference/` | UI 参考截图与测试固件 `1_PFlash.bin` / `2_PFlash.bin` |
@@ -38,12 +41,18 @@ F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 
 - 纯逻辑模块不得 import `vscode`，以便 `node --test` 直接测试；新逻辑优先放在纯模块并补测试。
 - 布局（`Run` 列表）、差异块由扩展侧计算，webview 只负责渲染与交互。
 - 传给 webview 的字节必须是纯 `Uint8Array`（Node `Buffer` 经 postMessage 后不再是类型化数组）。
-- 用户可见文案用中文；命令标题走 `package.nls.json` / `package.nls.zh-cn.json`。
+- 中英双语：源码文案一律写英文，中文译文放 `l10n/bundle.l10n.zh-cn.json`（键为英文原文，参数用 `{0}` `{1}`）。
+  - 扩展侧与纯逻辑模块统一用 `@vscode/l10n` 的 `l10n.t('...')`（`activate()` 中以 `vscode.l10n.bundle` 配置）；webview 用 `HexppTools.t('...')`（翻译表由 `webviewL10n()` 注入）。
+  - 第一个参数必须是字符串字面量；模块顶层常量里不能调用 `l10n.t()`（早于配置执行），需在使用时翻译。
+  - 命令标题、配置说明走 `package.nls.json` / `package.nls.zh-cn.json`。
+  - `test/l10n.test.ts` 检查：译文齐全、无多余条目、代码中（注释除外）无残留中文。
 - 补丁 / 加工步骤的字段保存用户输入的原始文本，由扩展侧纯模块解析，出错时抛 `FieldError(field)` 让界面高亮对应输入框。
 - webview CSP 只允许 `cspSource` 样式：HTML 字符串里不能写 `style="..."`，动态样式用 `el.style` 设置。
 - 地址显示格式 `0000_0000`；2/4 字节单元与数据检查器的字节序由 `HexPlusPlus.littleEndian` 控制。
 
 ## 功能
+
+**语言**：界面中英双语，跟随 VS Code 显示语言（`zh-cn` 显示中文，其他语言显示英文）。
 
 **格式**（按扩展名识别，并用内容二次确认，不匹配按 BIN 处理）
 

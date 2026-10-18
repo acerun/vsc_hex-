@@ -8,6 +8,7 @@
   const UI = window.HexppTools;
   const $ = (/** @type {string} */ id) => /** @type {HTMLElement} */ (document.getElementById(id));
   const esc = UI.esc, fmtAddr = UI.fmtAddr;
+  const t = UI.t;
   const num = (n) => n.toLocaleString('en-US');
   const size = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(2)} MB` : n >= 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`);
   const post = (m) => vscode.postMessage(m);
@@ -25,43 +26,43 @@
 
   document.body.innerHTML = `
   <header class="phead">
-    <div class="ptitle">固件加工<span class="muted">合并 · 偏移 · 裁剪 · 填充 · 写入 · 拆分</span></div>
+    <div class="ptitle">${t('Firmware Processing')}<span class="muted">${t('Merge · Offset · Crop · Fill · Write · Split')}</span></div>
     <span class="spacer"></span>
-    <button id="impBtn" class="sm" title="从 .hexpp.json 导入输入、步骤与输出设置">导入方案</button>
-    <button id="expBtn" class="sm" title="导出为 .hexpp.json（路径相对方案文件），便于复用或纳入版本管理">导出方案</button>
+    <button id="impBtn" class="sm" title="${t('Import inputs, steps and output settings from .hexpp.json')}">${t('Import recipe')}</button>
+    <button id="expBtn" class="sm" title="${t('Export as .hexpp.json (paths relative to the recipe file) for reuse or version control')}">${t('Export recipe')}</button>
   </header>
   <main class="pcols">
     <div class="pcol">
       <section class="psec">
-        <div class="thead"><span class="num">1</span>输入文件<span class="spacer"></span><button id="addBtn" class="sm accent">＋ 添加文件</button></div>
+        <div class="thead"><span class="num">1</span>${t('Input files')}<span class="spacer"></span><button id="addBtn" class="sm accent">${t('+ Add files')}</button></div>
         <div id="inputs" class="inputs"></div>
-        <div class="frow wide"><label>地址重叠</label><div class="fctl"><span class="seg sm" id="policy">
-          <button data-v="error" title="有重叠就报错">报错</button><button data-v="overwrite" title="列表中靠后的文件覆盖靠前的">后者覆盖</button><button data-v="keep" title="保留靠前文件的数据">前者优先</button>
+        <div class="frow wide"><label>${t('Address overlap')}</label><div class="fctl"><span class="seg sm" id="policy">
+          <button data-v="error" title="${t('Report an error on any overlap')}">${t('Error')}</button><button data-v="overwrite" title="${t('Files later in the list overwrite earlier ones')}">${t('Later overwrites')}</button><button data-v="keep" title="${t('Keep data from earlier files')}">${t('Earlier wins')}</button>
         </span></div></div>
       </section>
       <section class="psec">
-        <div class="thead"><span class="num">2</span>处理步骤<span class="muted lower">按顺序执行</span><span class="spacer"></span><button id="stepBtn" class="sm accent">＋ 添加步骤</button></div>
+        <div class="thead"><span class="num">2</span>${t('Steps')}<span class="muted lower">${t('Run in order')}</span><span class="spacer"></span><button id="stepBtn" class="sm accent">${t('+ Add step')}</button></div>
         <div id="steps"></div>
       </section>
     </div>
     <div class="pcol">
       <section class="psec">
-        <div class="thead"><span class="num">3</span>结果预览</div>
+        <div class="thead"><span class="num">3</span>${t('Result preview')}</div>
         <div class="mapbox"><canvas id="map"></canvas></div>
         <div id="summary" class="summary"></div>
         <div id="segs" class="segs"></div>
       </section>
       <section class="psec">
-        <div class="thead"><span class="num">4</span>输出</div>
-        <div class="frow wide"><label>格式</label><div class="fctl"><span class="seg sm" id="fmt"></span></div></div>
-        <div class="frow wide" id="rlRow"><label>记录长度</label><div class="fctl"><span class="seg sm" id="rl"><button data-v="16">16</button><button data-v="32">32</button></span><span class="muted hint">字节 / 记录</span></div></div>
-        <div class="frow wide" id="fillRow"><label>空洞填充</label><div class="fctl"><input id="fill" class="mono byte" spellcheck="false"><span class="muted hint">BIN 不含地址，空洞用此字节填充</span></div></div>
-        <div class="frow wide"><label>拆分</label><div class="fctl"><span class="seg sm" id="split">
-          <button data-v="none">不拆分</button><button data-v="segment">每段一个</button><button data-v="size">按大小</button><button data-v="boundary">按地址</button>
+        <div class="thead"><span class="num">4</span>${t('Output')}</div>
+        <div class="frow wide"><label>${t('Format')}</label><div class="fctl"><span class="seg sm" id="fmt"></span></div></div>
+        <div class="frow wide" id="rlRow"><label>${t('Record length')}</label><div class="fctl"><span class="seg sm" id="rl"><button data-v="16">16</button><button data-v="32">32</button></span><span class="muted hint">${t('bytes / record')}</span></div></div>
+        <div class="frow wide" id="fillRow"><label>${t('Gap fill')}</label><div class="fctl"><input id="fill" class="mono byte" spellcheck="false"><span class="muted hint">${t('BIN has no addresses; gaps are filled with this byte')}</span></div></div>
+        <div class="frow wide"><label>${t('Split')}</label><div class="fctl"><span class="seg sm" id="split">
+          <button data-v="none">${t('No split')}</button><button data-v="segment">${t('One per segment')}</button><button data-v="size">${t('By size')}</button><button data-v="boundary">${t('By address')}</button>
         </span><input id="splitValue" class="mono hidden" spellcheck="false"></div></div>
-        <div class="frow wide"><label>输出到</label><div class="fctl"><input id="outPath" class="mono" spellcheck="false" placeholder="输出文件路径"><button id="browse" class="sm">浏览…</button></div></div>
+        <div class="frow wide"><label>${t('Output to')}</label><div class="fctl"><input id="outPath" class="mono" spellcheck="false" placeholder="${t('Output file path')}"><button id="browse" class="sm">${t('Browse…')}</button></div></div>
         <div id="files" class="files"></div>
-        <div class="pact"><button id="genBtn" class="primary">生成</button><button id="genOpen" class="secondary">生成并打开</button><span id="genInfo" class="muted"></span></div>
+        <div class="pact"><button id="genBtn" class="primary">${t('Generate')}</button><button id="genOpen" class="secondary">${t('Generate and open')}</button><span id="genInfo" class="muted"></span></div>
       </section>
     </div>
   </main>`;
@@ -104,7 +105,7 @@
     $('fillRow').classList.toggle('hidden', o.format !== 'bin');
     const sv = /** @type {HTMLInputElement} */ ($('splitValue'));
     sv.classList.toggle('hidden', o.split !== 'size' && o.split !== 'boundary');
-    sv.placeholder = o.split === 'size' ? '每个文件大小，如 0x10000' : '拆分地址，如 0800_4000, 0802_0000';
+    sv.placeholder = o.split === 'size' ? t('Size per file, e.g. 0x10000') : t('Split addresses, e.g. 0800_4000, 0802_0000');
     if (document.activeElement !== sv) sv.value = o.splitValue;
     const fill = /** @type {HTMLInputElement} */ ($('fill'));
     if (document.activeElement !== fill) fill.value = o.fill;
@@ -134,7 +135,7 @@
       const p = inp && pv && pv.inputs.find((x) => x.id === inp.id);
       if (!p) return;
       const range = /** @type {HTMLElement} */ (el.querySelector('.irange'));
-      range.textContent = p.ranges.length ? `${fmtAddr(p.ranges[0][0])} – ${fmtAddr(p.ranges[p.ranges.length - 1][1] - 1)}` : '无数据';
+      range.textContent = p.ranges.length ? `${fmtAddr(p.ranges[0][0])} – ${fmtAddr(p.ranges[p.ranges.length - 1][1] - 1)}` : t('No data');
       /** @type {HTMLElement} */ (el.querySelector('[data-off]')).classList.toggle('bad', !!p.error);
       const err = /** @type {HTMLElement} */ (el.querySelector('.ierr'));
       err.textContent = p.error ? '✕ ' + p.error : '';
@@ -144,7 +145,7 @@
   function renderInputs() {
     const el = $('inputs');
     if (!cfg.inputs.length) {
-      el.innerHTML = '<div class="cempty">添加一个或多个固件文件（BIN / HEX / S-Record / TI-TXT / ELF）。<br><span class="muted">多个文件会按地址合并，如 Bootloader + App。</span></div>';
+      el.innerHTML = `<div class="cempty">${t('Add one or more firmware files (BIN / HEX / S-Record / TI-TXT / ELF).')}<br><span class="muted">${t('Multiple files are merged by address, e.g. Bootloader + App.')}</span></div>`;
       return;
     }
     el.innerHTML = cfg.inputs.map((inp, k) => {
@@ -152,10 +153,10 @@
       const r = p && p.ranges.length ? [p.ranges[0][0], p.ranges[p.ranges.length - 1][1]] : inp.start !== undefined ? [inp.start, inp.end] : null;
       return `<div class="inp" data-k="${k}">
         <div class="ihead"><span class="swatch c${k % COLORS}"></span><span class="iname" title="${esc(inp.path)}">${esc(inp.name)}</span><span class="badge">${esc(inp.format)}</span>
-          <span class="spacer"></span><span class="iact"><button data-a="up" title="上移（影响重叠时的优先级）">▲</button><button data-a="down" title="下移">▼</button><button data-a="del" title="移除">✕</button></span></div>
-        <div class="imeta"><span class="mono irange">${r ? `${fmtAddr(r[0])} – ${fmtAddr(r[1] - 1)}` : '无数据'}</span> · ${num(inp.size)} 字节 · ${inp.segs} 段${inp.note ? ` · <span class="muted">${esc(inp.note)}</span>` : ''}${inp.warnings ? ` · <span class="warn">⚠ ${inp.warnings} 个解析警告</span>` : ''}</div>
-        <div class="frow"><label>${inp.isBin ? '基址' : '偏移'}</label><div class="fctl"><input data-off class="mono${p && p.error ? ' bad' : ''}" value="${esc(inp.offset || '')}" spellcheck="false"
-          placeholder="${inp.isBin ? 'BIN 加载地址，如 0800_4000' : '+/- 十六进制，如 +1000，留空不偏移'}"></div></div>
+          <span class="spacer"></span><span class="iact"><button data-a="up" title="${t('Move up (affects priority on overlap)')}">▲</button><button data-a="down" title="${t('Move down')}">▼</button><button data-a="del" title="${t('Remove')}">✕</button></span></div>
+        <div class="imeta"><span class="mono irange">${r ? `${fmtAddr(r[0])} – ${fmtAddr(r[1] - 1)}` : t('No data')}</span> · ${t('{0} bytes', num(inp.size))} · ${t('{0} segments', inp.segs)}${inp.note ? ` · <span class="muted">${esc(inp.note)}</span>` : ''}${inp.warnings ? ` · <span class="warn">⚠ ${t('{0} parse warnings', inp.warnings)}</span>` : ''}</div>
+        <div class="frow"><label>${inp.isBin ? t('Base') : t('Offset')}</label><div class="fctl"><input data-off class="mono${p && p.error ? ' bad' : ''}" value="${esc(inp.offset || '')}" spellcheck="false"
+          placeholder="${inp.isBin ? t('BIN load address, e.g. 0800_4000') : t('+/- hex, e.g. +1000; leave empty for no offset')}"></div></div>
         <div class="err ierr${p && p.error ? '' : ' hidden'}">${p && p.error ? '✕ ' + esc(p.error) : ''}</div>
       </div>`;
     }).join('');
@@ -183,13 +184,13 @@
 
   // ---------------- 步骤 ----------------
   const STEP_HINT = {
-    offset: '所有地址加减一个值', moveTo: '整体平移到新起始地址', crop: '只保留范围内的数据', remove: '删掉范围内的数据',
-    fill: '用固定字节填充空洞或覆盖', align: '段首尾扩展到 N 字节边界', patch: 'CRC / 版本号 / 时间戳 / 序列号',
+    offset: t('Add or subtract a value from all addresses'), moveTo: t('Shift to a new start address'), crop: t('Keep only data within the range'), remove: t('Delete data within the range'),
+    fill: t('Fill gaps or overwrite with a fixed byte'), align: t('Extend segment ends to N-byte boundaries'), patch: t('CRC / version / timestamp / serial number'),
   };
   const stepList = UI.cardList($('steps'), {
     title: (s) => UI.stepTitle(s, algos),
     fields: (s) => UI.stepFields(s, algos),
-    empty: '没有步骤：直接合并输入并输出。<br><span class="muted">可添加偏移、裁剪、填充、写入 CRC 等。</span>',
+    empty: `${t('No steps: inputs are merged and written as is.')}<br><span class="muted">${t('Add offset, crop, fill, write CRC and more.')}</span>`,
     onChange: (list) => { cfg.steps = list; changed(); },
   });
   $('stepBtn').addEventListener('click', () => UI.menu($('stepBtn'), UI.STEP_OPS.map(([op, l]) => [op, l, STEP_HINT[op]]), (op) => {
@@ -208,15 +209,15 @@
     if (pv.error) h += `<div class="err">✕ ${esc(pv.error)}</div>`;
     if (res) {
       h += `<div class="stats">
-        <div><span class="sk">段</span><span class="sv">${num(res.segs)}</span></div>
-        <div><span class="sk">数据</span><span class="sv">${size(res.size)}</span><span class="muted">${num(res.size)} 字节</span></div>
-        <div><span class="sk">地址</span><span class="sv mono">${res.start !== undefined ? `${fmtAddr(res.start)} – ${fmtAddr(res.end - 1)}` : '—'}</span></div>
-        <div><span class="sk">CRC-32</span><span class="sv mono copy" title="点击复制（跳过空洞）">${esc(res.crc)}</span></div>
+        <div><span class="sk">${t('Segments')}</span><span class="sv">${num(res.segs)}</span></div>
+        <div><span class="sk">${t('Data')}</span><span class="sv">${size(res.size)}</span><span class="muted">${t('{0} bytes', num(res.size))}</span></div>
+        <div><span class="sk">${t('Address')}</span><span class="sv mono">${res.start !== undefined ? `${fmtAddr(res.start)} – ${fmtAddr(res.end - 1)}` : '—'}</span></div>
+        <div><span class="sk">CRC-32</span><span class="sv mono copy" title="${t('Click to copy (gaps skipped)')}">${esc(res.crc)}</span></div>
       </div>`;
     }
     if (pv.overlaps.length && cfg.policy !== 'error') {
-      h += pv.overlaps.slice(0, 3).map((o) => `<div class="warn">⚠ 输入 ${o[2] + 1} 与 ${o[3] + 1} 重叠 <span class="mono">${fmtAddr(o[0])}–${fmtAddr(o[1] - 1)}</span>（${cfg.policy === 'overwrite' ? '后者覆盖' : '前者优先'}）</div>`).join('');
-      if (pv.overlaps.length > 3) h += `<div class="warn">⚠ …共 ${pv.overlaps.length} 处重叠</div>`;
+      h += pv.overlaps.slice(0, 3).map((o) => `<div class="warn">⚠ ${t('Inputs {0} and {1} overlap {2} ({3})', o[2] + 1, o[3] + 1, `<span class="mono">${fmtAddr(o[0])}–${fmtAddr(o[1] - 1)}</span>`, cfg.policy === 'overwrite' ? t('Later overwrites') : t('Earlier wins'))}</div>`).join('');
+      if (pv.overlaps.length > 3) h += `<div class="warn">⚠ ${t('…{0} overlaps in total', pv.overlaps.length)}</div>`;
     }
     sum.innerHTML = h;
     const crc = sum.querySelector('.copy');
@@ -226,8 +227,8 @@
     if (res && res.ranges.length) {
       const rows = res.ranges.slice(0, 200).map((r, i) => `<tr><td class="muted">${i + 1}</td><td class="mono">${fmtAddr(r[0])}</td><td class="mono">${fmtAddr(r[1] - 1)}</td><td class="num">${num(r[1] - r[0])}</td>
         <td class="mono muted">${i + 1 < res.ranges.length ? `+${num(res.ranges[i + 1][0] - r[1])}` : ''}</td></tr>`).join('');
-      segs.innerHTML = `<table><thead><tr><th>#</th><th>起始</th><th>结束</th><th class="num">字节</th><th>到下一段的空洞</th></tr></thead><tbody>${rows}</tbody></table>` +
-        (res.segs > 200 ? `<div class="muted more">…还有 ${num(res.segs - 200)} 段</div>` : '');
+      segs.innerHTML = `<table><thead><tr><th>#</th><th>${t('Start')}</th><th>${t('End')}</th><th class="num">${t('Bytes')}</th><th>${t('Gap to next segment')}</th></tr></thead><tbody>${rows}</tbody></table>` +
+        (res.segs > 200 ? `<div class="muted more">${t('…{0} more segments', num(res.segs - 200))}</div>` : '');
     } else segs.innerHTML = '';
 
     const files = $('files');
@@ -237,8 +238,8 @@
       const f = { path: 'outPath', splitValue: 'splitValue', fill: 'fill' }[pv.outField];
       if (f) $(f).classList.add('bad');
     } else if (pv.files.length) {
-      files.innerHTML = `<div class="muted">将生成 ${pv.files.length} 个文件：</div>` + pv.files.slice(0, 50).map((f) =>
-        `<div class="file"><span class="mono">${esc(f.name)}</span><span class="muted">${size(f.size)}${f.holes ? ' · 空洞已填充' : ''}</span></div>`).join('') +
+      files.innerHTML = `<div class="muted">${t('Will generate {0} files:', pv.files.length)}</div>` + pv.files.slice(0, 50).map((f) =>
+        `<div class="file"><span class="mono">${esc(f.name)}</span><span class="muted">${size(f.size)}${f.holes ? ' · ' + t('Gaps filled') : ''}</span></div>`).join('') +
         (pv.files.length > 50 ? `<div class="muted">…</div>` : '');
     } else files.innerHTML = '';
     const ok = !!res && !pv.outError && pv.files.length > 0;
@@ -294,9 +295,9 @@
     if (pv) {
       cfg.inputs.forEach((inp, k) => {
         const p = pv.inputs.find((x) => x.id === inp.id);
-        lanes.push({ label: `输入 ${k + 1}`, ranges: p ? p.ranges : [], color: k % COLORS });
+        lanes.push({ label: t('Input {0}', k + 1), ranges: p ? p.ranges : [], color: k % COLORS });
       });
-      if (pv.result) lanes.push({ label: '结果', ranges: pv.result.ranges, color: -1 });
+      if (pv.result) lanes.push({ label: t('Results'), ranges: pv.result.ranges, color: -1 });
     }
     const all = lanes.flatMap((l) => l.ranges);
     axis = buildAxis(all);
@@ -314,7 +315,7 @@
     const font = css.getPropertyValue('--vscode-font-family') || 'sans-serif';
     const mono = css.getPropertyValue('--vscode-editor-font-family') || 'monospace';
     if (!axis) {
-      ctx.fillStyle = muted; ctx.font = `12px ${font}`; ctx.fillText('添加输入文件后显示地址分布', 8, 24);
+      ctx.fillStyle = muted; ctx.font = `12px ${font}`; ctx.fillText(t('Add input files to show the address map'), 8, 24);
       return;
     }
     const plotW = W - LABEL_W - 8;

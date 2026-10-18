@@ -1,5 +1,6 @@
 // 输入解析：地址默认十六进制（0800_1000 / 0x1000 / 1000h，#4096 为十进制）；数值默认十进制（0x 十六进制、0b 二进制）。
 // 解析失败抛出 FieldError，携带出错的字段名，便于界面高亮对应输入框。
+import * as l10n from '@vscode/l10n';
 
 export class FieldError extends Error {
   constructor(readonly field: string, message: string) {
@@ -73,16 +74,16 @@ export function need(v: number, field: string, msg: string): number {
 
 /** 范围：结束地址（含）或 "+长度"（十六进制，#为十进制），返回 [start, end)。 */
 export function parseRange(start: string | undefined, end: string | undefined, fields: [string, string] = ['start', 'end']) {
-  const a = need(parseAddress(start), fields[0], '起始地址无效');
+  const a = need(parseAddress(start), fields[0], l10n.t('Invalid start address'));
   const e = (end ?? '').trim();
   let b: number;
   if (e.startsWith('+')) {
-    b = a + need(parseAddress(e.slice(1)), fields[1], '长度无效');
+    b = a + need(parseAddress(e.slice(1)), fields[1], l10n.t('Invalid length'));
   } else {
-    b = need(parseAddress(e), fields[1], '结束地址无效') + 1;
+    b = need(parseAddress(e), fields[1], l10n.t('Invalid end address')) + 1;
   }
   if (b <= a) {
-    throw new FieldError(fields[1], '结束地址必须大于起始地址');
+    throw new FieldError(fields[1], l10n.t('End address must be greater than start address'));
   }
   return { start: a, end: b };
 }

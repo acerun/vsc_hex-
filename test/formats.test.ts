@@ -27,7 +27,7 @@ test('Intel HEX：扩展线性地址 + 校验和', () => {
 test('Intel HEX：校验和错误给出警告但仍读出数据', () => {
   const img = parseIhex(':0400000001020304F0\n:00000001FF');
   assert.equal(img.warnings.length, 1);
-  assert.match(img.warnings[0], /校验和/);
+  assert.match(img.warnings[0], /checksum/);
   assert.deepEqual([...img.segments[0].data], [1, 2, 3, 4]);
 });
 
@@ -52,7 +52,7 @@ test('S-Record：S3 数据 + S7 入口 + S0 头', () => {
 
 test('S-Record：校验和错误被检出', () => {
   const img = parseSrec('S30908000000DEADBEEF00');
-  assert.match(img.warnings[0], /校验和/);
+  assert.match(img.warnings[0], /checksum/);
 });
 
 test('TI-TXT：多个 @ 段与 q 终止', () => {

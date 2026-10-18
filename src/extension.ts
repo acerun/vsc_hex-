@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as l10n from '@vscode/l10n';
 import { HexEditorProvider, HexViewProvider } from './hexEditor';
 import { ComparePanel } from './compare';
 import { activeTarget } from './webview';
@@ -8,6 +9,10 @@ import { initTools } from './tools';
 import { ProcessPanel } from './processPanel';
 
 export function activate(ctx: vscode.ExtensionContext) {
+  // 纯逻辑模块用 @vscode/l10n 取文案，与扩展侧共用 VS Code 加载的翻译包；必须先于任何 l10n.t() 调用
+  if (vscode.l10n.bundle) {
+    l10n.config({ contents: vscode.l10n.bundle });
+  }
   initCopy(ctx);
   initTools(ctx);
   const cmd = (id: string, fn: (...args: any[]) => unknown) => ctx.subscriptions.push(vscode.commands.registerCommand(id, fn));
@@ -39,7 +44,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   const post = (msg: unknown) => activeTarget()?.panel.webview.postMessage(msg);
   const withTarget = (fn: (t: NonNullable<ReturnType<typeof activeTarget>>) => unknown) => () => {
     const t = activeTarget();
-    return t ? fn(t) : vscode.window.showInformationMessage('Hex++: 请先打开 Hex++ 编辑器或对比视图');
+    return t ? fn(t) : vscode.window.showInformationMessage(l10n.t('Hex++: Open a Hex++ editor or compare view first'));
   };
   const withCompare = (fn: (c: ComparePanel) => unknown) => () => {
     const t = activeTarget();
@@ -48,18 +53,18 @@ export function activate(ctx: vscode.ExtensionContext) {
   };
 
   cmd('HexPlusPlus.open', async (arg?: unknown) => {
-    const uri = currentUri(arg) ?? await pickFile('用 Hex++ 打开');
+    const uri = currentUri(arg) ?? await pickFile(l10n.t('Open with Hex++'));
     if (uri) {
       await vscode.commands.executeCommand('vscode.openWith', uri, HexEditorProvider.viewType);
     }
   });
 
   cmd('HexPlusPlus.compare', async () => {
-    const picked = await vscode.window.showOpenDialog({ title: '选择要比较的文件（可一次选两个）', canSelectMany: true });
+    const picked = await vscode.window.showOpenDialog({ title: l10n.t('Select files to compare (you can pick two at once)'), canSelectMany: true });
     if (!picked?.length) {
       return;
     }
-    const right = picked[1] ?? await pickFile('选择第二个文件', picked[0]);
+    const right = picked[1] ?? await pickFile(l10n.t('Select the second file'), picked[0]);
     if (right) {
       await ComparePanel.open(ctx, picked[0], right);
     }
@@ -72,11 +77,11 @@ export function activate(ctx: vscode.ExtensionContext) {
   });
 
   cmd('HexPlusPlus.compareWith', async (arg?: unknown) => {
-    const left = currentUri(arg) ?? await pickFile('选择第一个文件');
+    const left = currentUri(arg) ?? await pickFile(l10n.t('Select the first file'));
     if (!left) {
       return;
     }
-    const right = await pickFile(`选择与 ${left.path.split('/').pop()} 比较的文件`, left);
+    const right = await pickFile(l10n.t('Select a file to compare with {0}', left.path.split('/').pop() ?? ''), left);
     if (right) {
       await ComparePanel.open(ctx, left, right);
     }
@@ -88,7 +93,7 @@ export function activate(ctx: vscode.ExtensionContext) {
       // 来自 Hex++ 编辑器：包含未保存的修改
       return saveAsFormat(t.docUri, t.imageOf(0));
     }
-    const uri = currentUri(arg) ?? await pickFile('选择要转换的文件');
+    const uri = currentUri(arg) ?? await pickFile(l10n.t('Select a file to convert'));
     if (uri) {
       await saveAsFormat(uri);
     }
@@ -108,12 +113,12 @@ export function activate(ctx: vscode.ExtensionContext) {
 
   cmd('HexPlusPlus.selectRange', withTarget(async t => {
     const parse = (v: string) => parseInt(v.trim().replace(/_/g, '').replace(/^0x/i, ''), 16);
-    const valid = (v: string) => (/^(0x)?[0-9a-f_]+$/i.test(v.trim()) ? undefined : '请输入十六进制地址');
-    const from = await vscode.window.showInputBox({ title: '选择范围：起始地址（含）', value: '0x' + t.selection.start.toString(16).toUpperCase(), validateInput: valid });
+    const valid = (v: string) => (/^(0x)?[0-9a-f_]+$/i.test(v.trim()) ? undefined : l10n.t('Enter a hexadecimal address'));
+    const from = await vscode.window.showInputBox({ title: l10n.t('Select Range: start address (inclusive)'), value: '0x' + t.selection.start.toString(16).toUpperCase(), validateInput: valid });
     if (from === undefined) {
       return;
     }
-    const to = await vscode.window.showInputBox({ title: '选择范围：结束地址（含）', value: '0x' + (t.selection.end - 1).toString(16).toUpperCase(), validateInput: valid });
+    const to = await vscode.window.showInputBox({ title: l10n.t('Select Range: end address (inclusive)'), value: '0x' + (t.selection.end - 1).toString(16).toUpperCase(), validateInput: valid });
     if (to === undefined) {
       return;
     }
@@ -126,14 +131,14 @@ export function activate(ctx: vscode.ExtensionContext) {
       return;
     }
     if (t.selection.ro) {
-      vscode.window.showInformationMessage('Hex++: 当前为只读模式，按 Insert 切换为读写后再填充');
+      vscode.window.showInformationMessage(l10n.t('Hex++: Read-only mode is active. Press Insert to switch to Read/Write before filling'));
       return;
     }
     const input = await vscode.window.showInputBox({
-      title: `填充选区（${(t.selection.end - t.selection.start).toLocaleString('en-US')} 字节）`,
-      prompt: '十六进制字节序列，按顺序循环填充，如 FF 或 DE AD BE EF',
+      title: l10n.t('Fill Selection ({0} bytes)', (t.selection.end - t.selection.start).toLocaleString('en-US')),
+      prompt: l10n.t('Hex byte sequence, repeated in order to fill, e.g. FF or DE AD BE EF'),
       value: 'FF',
-      validateInput: v => (/^\s*([0-9a-f]{2}\s*)+$/i.test(v) ? undefined : '请输入十六进制字节，如 FF 或 DE AD'),
+      validateInput: v => (/^\s*([0-9a-f]{2}\s*)+$/i.test(v) ? undefined : l10n.t('Enter hex bytes, e.g. FF or DE AD')),
     });
     if (input) {
       const pattern = Uint8Array.from(input.match(/[0-9a-f]{2}/gi)!.map(x => parseInt(x, 16)));

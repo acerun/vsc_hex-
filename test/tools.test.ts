@@ -36,7 +36,7 @@ test('CRC-32/STM32：按小端 32 位字输入', () => {
 test('自定义 CRC 与预设一致；参数无效时报错', () => {
   const custom = { width: 16, poly: 0x8005, init: 0xffff, refin: true, refout: true, xorout: 0 };
   assert.equal(hexOf(checksum('custom', enc('123456789'), { custom })), '4B37');
-  assert.throws(() => checksum('custom', enc('1'), { custom: { ...custom, width: 40 } }), /宽度/);
+  assert.throws(() => checksum('custom', enc('1'), { custom: { ...custom, width: 40 } }), /Width/);
   assert.equal(algoInfo('custom', { ...custom, width: 8 })?.size, 1);
 });
 
@@ -50,7 +50,7 @@ test('校验和与哈希', () => {
   assert.equal(hexOf(checksum('sum16w', d, { le: false })), '0501'); // 0x0102 + 0x03FF
   assert.equal(hexOf(checksum('sum32w', d, { le: true })), 'FF030201');
   assert.equal(formatDigest(algoInfo('md5')!, checksum('md5', enc('abc'))), '900150983cd24fb0d6963f7d28e17f72');
-  assert.equal(ALGORITHMS.filter(a => a.group === '哈希').length, 3);
+  assert.equal(ALGORITHMS.filter(a => a.group === 'Hash').length, 3);
 });
 
 test('映像校验：空洞填充 / 跳过，范围外的数据不参与', () => {
@@ -63,7 +63,7 @@ test('映像校验：空洞填充 / 跳过，范围外的数据不参与', () =>
   assert.equal(skip.count, 2);
   assert.equal(hexOf(skip.results[0].value!), '05');
   const bad = checksumImage(m, ['nope', 'sum8'], 0x100, 0x102);
-  assert.match(bad.results[0].error!, /未知/);
+  assert.match(bad.results[0].error!, /Unknown/);
   assert.equal(hexOf(bad.results[1].value!), '03');
 });
 
@@ -88,7 +88,7 @@ test('输入解析：地址 / 偏移 / 数值 / 范围', () => {
   assert.deepEqual(parseRange('1000', '10FF'), { start: 0x1000, end: 0x1100 });
   assert.deepEqual(parseRange('1000', '+100'), { start: 0x1000, end: 0x1100 });
   assert.deepEqual(parseRange('0', '+#16'), { start: 0, end: 16 });
-  assert.throws(() => parseRange('2000', '1000'), /大于/);
+  assert.throws(() => parseRange('2000', '1000'), /greater/);
 });
 
 test('补丁：依次规划，后面的 CRC 能看到前面写入的版本号', () => {
@@ -103,7 +103,7 @@ test('补丁：依次规划，后面的 CRC 能看到前面写入的版本号', 
   assert.deepEqual([...plan.results[1].bytes!], [...expect].reverse());
   assert.equal(m.segments[0].data[0], 0); // 规划不修改原映像
   const reversed = planPatches(m, [specs[1], specs[0]]);
-  assert.match(reversed.results[0].warning!, /移到最后/);
+  assert.match(reversed.results[0].warning!, /move the checksum patch to the end/);
   assert.equal(plan.results[1].warning, undefined);
   applyPatches(m, specs);
   assert.deepEqual([...readBytes(m, 0xc, 0x10)], [...expect].reverse());
@@ -118,10 +118,10 @@ test('补丁：空洞 / 越界 / 自包含范围 / 字段错误', () => {
     { kind: 'bytes', enabled: true, address: 'zz', value: 'AA' },
     { kind: 'number', enabled: false, address: '0', value: '1' },
   ]).results;
-  assert.match(r[0].error!, /空洞/);
+  assert.match(r[0].error!, /gap/);
   assert.equal(r[0].field, 'address');
   assert.equal(r[1].field, 'value');
-  assert.match(r[2].warning!, /包含写入地址/);
+  assert.match(r[2].warning!, /includes the write address/);
   assert.equal(r[3].field, 'address');
   assert.ok(r[4].skipped);
 });
@@ -154,7 +154,7 @@ test('补丁：文本定长、时间戳、负数补码、序列号递增', () =>
 test('加工：偏移 / 裁剪 / 删除 / 填充 / 对齐', () => {
   const m = img([0x10, [1, 2, 3, 4]], [0x20, [5, 6]]);
   assert.deepEqual(ranges(offsetImage(m, 0x100)), [[0x110, 0x114], [0x120, 0x122]]);
-  assert.throws(() => offsetImage(m, -0x20), /超出/);
+  assert.throws(() => offsetImage(m, -0x20), /out of/);
   assert.deepEqual(ranges(cropImage(m, 0x12, 0x21)), [[0x12, 0x14], [0x20, 0x21]]);
   assert.deepEqual(ranges(removeRange(m, 0x11, 0x21)), [[0x10, 0x11], [0x21, 0x22]]);
   const f = fillRange(m, 0x10, 0x22, 0xaa, 'holes');
@@ -171,7 +171,7 @@ test('加工：合并重叠策略与拆分', () => {
   const a = img([0x0, [1, 1, 1, 1]]);
   const b = img([0x2, [2, 2, 2, 2]]);
   assert.deepEqual(findOverlaps([a, b]).map(o => [o.start, o.end]), [[2, 4]]);
-  assert.throws(() => mergeImages([a, b], 'error'), /重叠/);
+  assert.throws(() => mergeImages([a, b], 'error'), /overlap/);
   assert.deepEqual([...mergeImages([a, b], 'overwrite').segments[0].data], [1, 1, 2, 2, 2, 2]);
   assert.deepEqual([...mergeImages([a, b], 'keep').segments[0].data], [1, 1, 1, 1, 2, 2]);
 
@@ -200,11 +200,11 @@ test('流水线：Bootloader + App(BIN 基址) → 填充 → 写入 CRC', () =>
   assert.deepEqual([...readBytes(r.image!, 0x08000006, 0x08000007)], [(0xb0 + 0xb1 + 0xff + 0xff + 0xa0 + 0xa1) & 0xff]);
   assert.ok(r.steps[1].skipped);
   assert.equal(r.steps[3].field, 'value');
-  assert.match(r.steps[0].info!, /1 段/);
+  assert.match(r.steps[0].info!, /1 segments/);
   assert.equal(boot.segments[0].data.length, 2); // 输入映像不被修改
   assert.deepEqual([...app.segments[0].data], [0xa0, 0xa1, 0, 0, 0, 0]);
 
   const bad = runPipeline([{ image: boot }, { image: boot }], 'error', []);
-  assert.match(bad.error!, /重叠/);
+  assert.match(bad.error!, /overlap/);
   assert.equal(bad.overlaps.length, 1);
 });

@@ -1,5 +1,6 @@
 // 侧面板「校验」「补丁」的扩展侧处理：编辑器与对比面板的 webview 消息转到这里，计算交给纯模块。
 import * as vscode from 'vscode';
+import * as l10n from '@vscode/l10n';
 import { ALGORITHMS, CUSTOM_CRC, CrcModel, algoInfo, checksumImage, formatDigest, validateCrcModel } from './checksum';
 import { FieldError, need, parseAddress, parseByte, parseRange, parseValue } from './numbers';
 import { PatchResult, PatchSpec, advanceSerials, planPatches } from './patch';
@@ -43,7 +44,7 @@ export function resultPayload(r: PatchResult & { info?: string }) {
   const b = r.bytes;
   return {
     skipped: r.skipped, error: r.error, field: r.field, warning: r.warning, info: r.info, address: r.address,
-    hex: b ? Array.from(b.subarray(0, 24), x => hex(x, 2)).join(' ') + (b.length > 24 ? ` …（共 ${b.length} 字节）` : '') : undefined,
+    hex: b ? Array.from(b.subarray(0, 24), x => hex(x, 2)).join(' ') + (b.length > 24 ? l10n.t(' … ({0} bytes total)', b.length) : '') : undefined,
   };
 }
 
@@ -79,7 +80,7 @@ function checksum(t: HexTarget, m: any) {
   const img = t.imageOf(m.side ?? 0);
   try {
     const r = parseRange(m.start, m.end);
-    const fill = m.skip ? undefined : need(parseByte(m.fill), 'fill', '填充字节无效');
+    const fill = m.skip ? undefined : need(parseByte(m.fill), 'fill', l10n.t('Invalid fill byte'));
     const custom = m.algos.includes(CUSTOM_CRC) ? customCrc() : undefined;
     const t0 = Date.now();
     const { results, count } = checksumImage(img, m.algos, r.start, r.end, { fill, le: m.le, custom });
@@ -87,7 +88,7 @@ function checksum(t: HexTarget, m: any) {
       type: 'checksumResult', req: m.req, start: r.start, end: r.end, count, ms: Date.now() - t0,
       results: results.map(x => {
         const info = algoInfo(x.id, custom);
-        return { id: x.id, name: info?.name ?? x.id, error: x.error ?? (x.id === CUSTOM_CRC && !custom ? '自定义 CRC 参数无效' : undefined), text: x.value && info ? formatDigest(info, x.value) : '' };
+        return { id: x.id, name: info?.name ?? x.id, error: x.error ?? (x.id === CUSTOM_CRC && !custom ? l10n.t('Invalid custom CRC parameters') : undefined), text: x.value && info ? formatDigest(info, x.value) : '' };
       }),
     });
   } catch (e) {
@@ -108,8 +109,8 @@ async function applyPatchList(t: HexTarget, m: any) {
   const list: PatchSpec[] = m.patches ?? loadPatches(t.docUri);
   await savePatches(t.docUri, list);
   if (m.ro) {
-    const go = '切换为读写并应用';
-    if (await vscode.window.showWarningMessage('Hex++: 当前为只读模式，应用补丁会修改文件内容。', go) !== go) {
+    const go = l10n.t('Switch to Read/Write and Apply');
+    if (await vscode.window.showWarningMessage(l10n.t('Hex++: Read-only mode is active. Applying patches will modify the file.'), go) !== go) {
       return;
     }
     post(t, { type: 'setReadOnly', ro: false });
@@ -117,7 +118,7 @@ async function applyPatchList(t: HexTarget, m: any) {
   const plan = planPatches(t.imageOf(0), list, { custom: customCrc() });
   const errors = plan.results.filter(r => r.error).length;
   if (plan.writes.length) {
-    t.applyWrites(plan.writes, '应用补丁');
+    t.applyWrites(plan.writes, l10n.t('Apply Patches'));
   }
   // 序列号在写入成功后递增
   if (plan.writes.length && list.some(s => s.kind === 'serial' && s.enabled)) {
@@ -130,7 +131,9 @@ async function applyPatchList(t: HexTarget, m: any) {
   }
   post(t, {
     type: 'flash',
-    text: plan.writes.length ? `已写入 ${plan.writes.length} 处补丁${errors ? `，${errors} 处有错误未写入` : ''}（Ctrl+Z 撤销，Ctrl+S 保存）` : '没有可写入的补丁',
+    text: plan.writes.length
+      ? l10n.t('Wrote {0} patches{1} (Ctrl+Z to undo, Ctrl+S to save)', plan.writes.length, errors ? l10n.t(', {0} with errors were not written', errors) : '')
+      : l10n.t('No patches to write'),
   });
 }
 
@@ -140,13 +143,13 @@ async function exportPatches(t: HexTarget) {
   }
   const target = await vscode.window.showSaveDialog({
     defaultUri: t.docUri.with({ path: t.docUri.path.replace(/\.[^./]*$/, '') + '.patch.json' }),
-    filters: { 'Hex++ 补丁方案': ['json'] },
-    title: '导出补丁方案',
+    filters: { [l10n.t('Hex++ Patch Recipe')]: ['json'] },
+    title: l10n.t('Export Patch Recipe'),
   });
   if (target) {
     const list = loadPatches(t.docUri).map(({ open, ...p }) => p);
     await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(JSON.stringify({ hexpp: 'patches', version: 1, patches: list }, null, 2)));
-    vscode.window.setStatusBarMessage(`Hex++: 已导出 ${list.length} 条补丁`, 3000);
+    vscode.window.setStatusBarMessage(l10n.t('Hex++: Exported {0} patches', list.length), 3000);
   }
 }
 
@@ -154,7 +157,7 @@ async function importPatches(t: HexTarget) {
   if (!t.docUri) {
     return;
   }
-  const pick = await vscode.window.showOpenDialog({ filters: { 'Hex++ 补丁方案': ['json'] }, title: '导入补丁方案', defaultUri: vscode.Uri.joinPath(t.docUri, '..') });
+  const pick = await vscode.window.showOpenDialog({ filters: { [l10n.t('Hex++ Patch Recipe')]: ['json'] }, title: l10n.t('Import Patch Recipe'), defaultUri: vscode.Uri.joinPath(t.docUri, '..') });
   if (!pick?.[0]) {
     return;
   }
@@ -162,13 +165,13 @@ async function importPatches(t: HexTarget) {
     const j = JSON.parse(new TextDecoder().decode(await vscode.workspace.fs.readFile(pick[0])));
     const list: PatchSpec[] = Array.isArray(j) ? j : j.patches;
     if (!Array.isArray(list) || list.some(p => typeof p?.kind !== 'string')) {
-      throw new Error('不是补丁方案文件');
+      throw new Error(l10n.t('Not a patch recipe file'));
     }
     await savePatches(t.docUri, list);
     post(t, { type: 'patches', patches: list });
     previewPatches(t, list);
   } catch (e) {
-    vscode.window.showErrorMessage(`Hex++: 导入失败：${(e as Error).message}`);
+    vscode.window.showErrorMessage(l10n.t('Hex++: Import failed: {0}', (e as Error).message));
   }
 }
 
@@ -182,7 +185,7 @@ export async function handleToolMessage(t: HexTarget, m: any): Promise<boolean> 
       return true;
     case 'clipboard':
       await vscode.env.clipboard.writeText(m.text);
-      vscode.window.setStatusBarMessage(`Hex++: 已复制 ${m.text}`, 3000);
+      vscode.window.setStatusBarMessage(l10n.t('Hex++: Copied {0}', m.text), 3000);
       return true;
     case 'patchSave':
       if (t.docUri) {

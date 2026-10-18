@@ -2,7 +2,7 @@
   "name": "hexplusplus",
   "displayName": "Hex++",
   "description": "%description%",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "runm",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -42,12 +42,13 @@
     "Visualization"
   ],
   "main": "./out/src/extension.js",
+  "l10n": "./l10n",
   "activationEvents": [],
   "scripts": {
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
     "test": "tsc -p . && node --test out/test/*.test.js",
-    "package": "vsce package --no-dependencies"
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -61,7 +62,9 @@
         "viewType": "HexPlusPlus.hexEdit",
         "displayName": "Hex++ Editor",
         "selector": [
-          { "filenamePattern": "*" }
+          {
+            "filenamePattern": "*"
+          }
         ],
         "priority": "option"
       },
@@ -69,110 +72,418 @@
         "viewType": "HexPlusPlus.view",
         "displayName": "Hex++ Viewer (read-only)",
         "selector": [
-          { "filenamePattern": "*" }
+          {
+            "filenamePattern": "*"
+          }
         ],
         "priority": "option"
       }
     ],
     "commands": [
-      { "command": "HexPlusPlus.open", "title": "%cmd.open%", "category": "Hex++" },
-      { "command": "HexPlusPlus.compare", "title": "%cmd.compare%", "category": "Hex++" },
-      { "command": "HexPlusPlus.compareSelected", "title": "%cmd.compareSelected%", "category": "Hex++" },
-      { "command": "HexPlusPlus.compareWith", "title": "%cmd.compareWith%", "category": "Hex++" },
-      { "command": "HexPlusPlus.saveAs", "title": "%cmd.saveAs%", "category": "Hex++" },
-      { "command": "HexPlusPlus.copy", "title": "%cmd.copy%", "category": "Hex++" },
-      { "command": "HexPlusPlus.copyAs", "title": "%cmd.copyAs%", "category": "Hex++" },
-      { "command": "HexPlusPlus.copyOffsetHex", "title": "%cmd.copyOffsetHex%", "category": "Hex++" },
-      { "command": "HexPlusPlus.copyOffsetDec", "title": "%cmd.copyOffsetDec%", "category": "Hex++" },
-      { "command": "HexPlusPlus.goTo", "title": "%cmd.goTo%", "category": "Hex++" },
-      { "command": "HexPlusPlus.selectRange", "title": "%cmd.selectRange%", "category": "Hex++" },
-      { "command": "HexPlusPlus.fill", "title": "%cmd.fill%", "category": "Hex++" },
-      { "command": "HexPlusPlus.find", "title": "%cmd.find%", "category": "Hex++" },
-      { "command": "HexPlusPlus.unit1", "title": "%cmd.unit1%", "category": "Hex++" },
-      { "command": "HexPlusPlus.unit2", "title": "%cmd.unit2%", "category": "Hex++" },
-      { "command": "HexPlusPlus.unit4", "title": "%cmd.unit4%", "category": "Hex++" },
-      { "command": "HexPlusPlus.toggleReadOnly", "title": "%cmd.toggleReadOnly%", "category": "Hex++" },
-      { "command": "HexPlusPlus.toggleInspector", "title": "%cmd.toggleInspector%", "category": "Hex++" },
-      { "command": "HexPlusPlus.checksum", "title": "%cmd.checksum%", "category": "Hex++" },
-      { "command": "HexPlusPlus.patch", "title": "%cmd.patch%", "category": "Hex++" },
-      { "command": "HexPlusPlus.process", "title": "%cmd.process%", "category": "Hex++" },
-      { "command": "HexPlusPlus.compare.next", "title": "%cmd.compare.next%", "category": "Hex++" },
-      { "command": "HexPlusPlus.compare.prev", "title": "%cmd.compare.prev%", "category": "Hex++" },
-      { "command": "HexPlusPlus.compare.swap", "title": "%cmd.compare.swap%", "category": "Hex++" },
-      { "command": "HexPlusPlus.compare.reload", "title": "%cmd.compare.reload%", "category": "Hex++" },
-      { "command": "HexPlusPlus.compare.exportReport", "title": "%cmd.compare.exportReport%", "category": "Hex++" }
+      {
+        "command": "HexPlusPlus.open",
+        "title": "%cmd.open%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.compare",
+        "title": "%cmd.compare%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.compareSelected",
+        "title": "%cmd.compareSelected%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.compareWith",
+        "title": "%cmd.compareWith%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.saveAs",
+        "title": "%cmd.saveAs%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.copy",
+        "title": "%cmd.copy%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.copyAs",
+        "title": "%cmd.copyAs%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.copyOffsetHex",
+        "title": "%cmd.copyOffsetHex%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.copyOffsetDec",
+        "title": "%cmd.copyOffsetDec%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.goTo",
+        "title": "%cmd.goTo%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.selectRange",
+        "title": "%cmd.selectRange%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.fill",
+        "title": "%cmd.fill%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.find",
+        "title": "%cmd.find%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.unit1",
+        "title": "%cmd.unit1%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.unit2",
+        "title": "%cmd.unit2%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.unit4",
+        "title": "%cmd.unit4%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.toggleReadOnly",
+        "title": "%cmd.toggleReadOnly%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.toggleInspector",
+        "title": "%cmd.toggleInspector%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.checksum",
+        "title": "%cmd.checksum%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.patch",
+        "title": "%cmd.patch%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.process",
+        "title": "%cmd.process%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.compare.next",
+        "title": "%cmd.compare.next%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.compare.prev",
+        "title": "%cmd.compare.prev%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.compare.swap",
+        "title": "%cmd.compare.swap%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.compare.reload",
+        "title": "%cmd.compare.reload%",
+        "category": "Hex++"
+      },
+      {
+        "command": "HexPlusPlus.compare.exportReport",
+        "title": "%cmd.compare.exportReport%",
+        "category": "Hex++"
+      }
     ],
     "menus": {
       "explorer/context": [
-        { "command": "HexPlusPlus.open", "when": "!explorerResourceIsFolder", "group": "navigation@90" },
-        { "command": "HexPlusPlus.compareSelected", "when": "listDoubleSelection && !explorerResourceIsFolder", "group": "3_compare@90" },
-        { "command": "HexPlusPlus.compareWith", "when": "!listDoubleSelection && !explorerResourceIsFolder", "group": "3_compare@91" },
-        { "command": "HexPlusPlus.saveAs", "when": "!explorerResourceIsFolder", "group": "7_modification@90" },
-        { "command": "HexPlusPlus.process", "when": "!explorerResourceIsFolder", "group": "7_modification@91" }
+        {
+          "command": "HexPlusPlus.open",
+          "when": "!explorerResourceIsFolder",
+          "group": "navigation@90"
+        },
+        {
+          "command": "HexPlusPlus.compareSelected",
+          "when": "listDoubleSelection && !explorerResourceIsFolder",
+          "group": "3_compare@90"
+        },
+        {
+          "command": "HexPlusPlus.compareWith",
+          "when": "!listDoubleSelection && !explorerResourceIsFolder",
+          "group": "3_compare@91"
+        },
+        {
+          "command": "HexPlusPlus.saveAs",
+          "when": "!explorerResourceIsFolder",
+          "group": "7_modification@90"
+        },
+        {
+          "command": "HexPlusPlus.process",
+          "when": "!explorerResourceIsFolder",
+          "group": "7_modification@91"
+        }
       ],
       "editor/title": [
-        { "command": "HexPlusPlus.compareWith", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./", "group": "navigation@90" }
+        {
+          "command": "HexPlusPlus.compareWith",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./",
+          "group": "navigation@90"
+        }
       ],
       "webview/context": [
-        { "command": "HexPlusPlus.copy", "when": "webviewSection == 'hexpp'", "group": "1_copy@1" },
-        { "command": "HexPlusPlus.copyAs", "when": "webviewSection == 'hexpp'", "group": "1_copy@2" },
-        { "command": "HexPlusPlus.copyOffsetHex", "when": "webviewSection == 'hexpp'", "group": "1_copy@3" },
-        { "command": "HexPlusPlus.copyOffsetDec", "when": "webviewSection == 'hexpp'", "group": "1_copy@4" },
-        { "command": "HexPlusPlus.unit1", "when": "webviewSection == 'hexpp'", "group": "2_unit@1" },
-        { "command": "HexPlusPlus.unit2", "when": "webviewSection == 'hexpp'", "group": "2_unit@2" },
-        { "command": "HexPlusPlus.unit4", "when": "webviewSection == 'hexpp'", "group": "2_unit@3" },
-        { "command": "HexPlusPlus.fill", "when": "webviewSection == 'hexpp' && webviewId == 'HexPlusPlus.hexEdit'", "group": "3_edit@1" },
-        { "command": "HexPlusPlus.checksum", "when": "webviewSection == 'hexpp'", "group": "3_edit@2" },
-        { "command": "HexPlusPlus.patch", "when": "webviewSection == 'hexpp' && webviewId == 'HexPlusPlus.hexEdit'", "group": "3_edit@3" },
-        { "command": "HexPlusPlus.goTo", "when": "webviewSection == 'hexpp'", "group": "4_nav@1" },
-        { "command": "HexPlusPlus.selectRange", "when": "webviewSection == 'hexpp'", "group": "4_nav@2" },
-        { "command": "HexPlusPlus.saveAs", "when": "webviewSection == 'hexpp'", "group": "5_file@1" },
-        { "command": "HexPlusPlus.process", "when": "webviewSection == 'hexpp' && webviewId != 'HexPlusPlus.compare'", "group": "5_file@3" },
-        { "command": "HexPlusPlus.compareWith", "when": "webviewSection == 'hexpp'", "group": "5_file@2" }
+        {
+          "command": "HexPlusPlus.copy",
+          "when": "webviewSection == 'hexpp'",
+          "group": "1_copy@1"
+        },
+        {
+          "command": "HexPlusPlus.copyAs",
+          "when": "webviewSection == 'hexpp'",
+          "group": "1_copy@2"
+        },
+        {
+          "command": "HexPlusPlus.copyOffsetHex",
+          "when": "webviewSection == 'hexpp'",
+          "group": "1_copy@3"
+        },
+        {
+          "command": "HexPlusPlus.copyOffsetDec",
+          "when": "webviewSection == 'hexpp'",
+          "group": "1_copy@4"
+        },
+        {
+          "command": "HexPlusPlus.unit1",
+          "when": "webviewSection == 'hexpp'",
+          "group": "2_unit@1"
+        },
+        {
+          "command": "HexPlusPlus.unit2",
+          "when": "webviewSection == 'hexpp'",
+          "group": "2_unit@2"
+        },
+        {
+          "command": "HexPlusPlus.unit4",
+          "when": "webviewSection == 'hexpp'",
+          "group": "2_unit@3"
+        },
+        {
+          "command": "HexPlusPlus.fill",
+          "when": "webviewSection == 'hexpp' && webviewId == 'HexPlusPlus.hexEdit'",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "HexPlusPlus.checksum",
+          "when": "webviewSection == 'hexpp'",
+          "group": "3_edit@2"
+        },
+        {
+          "command": "HexPlusPlus.patch",
+          "when": "webviewSection == 'hexpp' && webviewId == 'HexPlusPlus.hexEdit'",
+          "group": "3_edit@3"
+        },
+        {
+          "command": "HexPlusPlus.goTo",
+          "when": "webviewSection == 'hexpp'",
+          "group": "4_nav@1"
+        },
+        {
+          "command": "HexPlusPlus.selectRange",
+          "when": "webviewSection == 'hexpp'",
+          "group": "4_nav@2"
+        },
+        {
+          "command": "HexPlusPlus.saveAs",
+          "when": "webviewSection == 'hexpp'",
+          "group": "5_file@1"
+        },
+        {
+          "command": "HexPlusPlus.process",
+          "when": "webviewSection == 'hexpp' && webviewId != 'HexPlusPlus.compare'",
+          "group": "5_file@3"
+        },
+        {
+          "command": "HexPlusPlus.compareWith",
+          "when": "webviewSection == 'hexpp'",
+          "group": "5_file@2"
+        }
       ],
       "commandPalette": [
-        { "command": "HexPlusPlus.compareSelected", "when": "false" },
-        { "command": "HexPlusPlus.copy", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-        { "command": "HexPlusPlus.copyAs", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-        { "command": "HexPlusPlus.copyOffsetHex", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-        { "command": "HexPlusPlus.copyOffsetDec", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-        { "command": "HexPlusPlus.goTo", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.selectRange", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-        { "command": "HexPlusPlus.fill", "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/" },
-        { "command": "HexPlusPlus.find", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.unit1", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.unit2", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.unit4", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.toggleReadOnly", "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/" },
-        { "command": "HexPlusPlus.toggleInspector", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-        { "command": "HexPlusPlus.checksum", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.patch", "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/" },
-        { "command": "HexPlusPlus.compare.next", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.compare.prev", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.compare.swap", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.compare.reload", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },
-        { "command": "HexPlusPlus.compare.exportReport", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" }
+        {
+          "command": "HexPlusPlus.compareSelected",
+          "when": "false"
+        },
+        {
+          "command": "HexPlusPlus.copy",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./"
+        },
+        {
+          "command": "HexPlusPlus.copyAs",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./"
+        },
+        {
+          "command": "HexPlusPlus.copyOffsetHex",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./"
+        },
+        {
+          "command": "HexPlusPlus.copyOffsetDec",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./"
+        },
+        {
+          "command": "HexPlusPlus.goTo",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.selectRange",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./"
+        },
+        {
+          "command": "HexPlusPlus.fill",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+        },
+        {
+          "command": "HexPlusPlus.find",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.unit1",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.unit2",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.unit4",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.toggleReadOnly",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+        },
+        {
+          "command": "HexPlusPlus.toggleInspector",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./"
+        },
+        {
+          "command": "HexPlusPlus.checksum",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.patch",
+          "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+        },
+        {
+          "command": "HexPlusPlus.compare.next",
+          "when": "activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.compare.prev",
+          "when": "activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.compare.swap",
+          "when": "activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.compare.reload",
+          "when": "activeWebviewPanelId == 'HexPlusPlus.compare'"
+        },
+        {
+          "command": "HexPlusPlus.compare.exportReport",
+          "when": "activeWebviewPanelId == 'HexPlusPlus.compare'"
+        }
       ]
     },
     "keybindings": [
-      { "command": "HexPlusPlus.goTo", "key": "ctrl+g", "mac": "cmd+g", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-      { "command": "HexPlusPlus.find", "key": "ctrl+f", "mac": "cmd+f", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-      { "command": "HexPlusPlus.copyAs", "key": "ctrl+alt+c", "mac": "cmd+alt+c", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./" },
-      { "command": "HexPlusPlus.unit1", "key": "ctrl+1", "mac": "cmd+1", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-      { "command": "HexPlusPlus.unit2", "key": "ctrl+2", "mac": "cmd+2", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-      { "command": "HexPlusPlus.unit4", "key": "ctrl+4", "mac": "cmd+4", "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'" },
-      { "command": "HexPlusPlus.fill", "key": "ctrl+i", "mac": "cmd+i", "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/" },
-      { "command": "HexPlusPlus.toggleReadOnly", "key": "insert", "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/" },
-      { "command": "HexPlusPlus.compare.next", "key": "f8", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },
-      { "command": "HexPlusPlus.compare.prev", "key": "shift+f8", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" },
-      { "command": "HexPlusPlus.compare.reload", "key": "f5", "when": "activeWebviewPanelId == 'HexPlusPlus.compare'" }
+      {
+        "command": "HexPlusPlus.goTo",
+        "key": "ctrl+g",
+        "mac": "cmd+g",
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+      },
+      {
+        "command": "HexPlusPlus.find",
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+      },
+      {
+        "command": "HexPlusPlus.copyAs",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c",
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\./"
+      },
+      {
+        "command": "HexPlusPlus.unit1",
+        "key": "ctrl+1",
+        "mac": "cmd+1",
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+      },
+      {
+        "command": "HexPlusPlus.unit2",
+        "key": "ctrl+2",
+        "mac": "cmd+2",
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+      },
+      {
+        "command": "HexPlusPlus.unit4",
+        "key": "ctrl+4",
+        "mac": "cmd+4",
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\./ || activeWebviewPanelId == 'HexPlusPlus.compare'"
+      },
+      {
+        "command": "HexPlusPlus.fill",
+        "key": "ctrl+i",
+        "mac": "cmd+i",
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+      },
+      {
+        "command": "HexPlusPlus.toggleReadOnly",
+        "key": "insert",
+        "when": "activeCustomEditorId =~ /^HexPlusPlus\\.hexEdit$/"
+      },
+      {
+        "command": "HexPlusPlus.compare.next",
+        "key": "f8",
+        "when": "activeWebviewPanelId == 'HexPlusPlus.compare'"
+      },
+      {
+        "command": "HexPlusPlus.compare.prev",
+        "key": "shift+f8",
+        "when": "activeWebviewPanelId == 'HexPlusPlus.compare'"
+      },
+      {
+        "command": "HexPlusPlus.compare.reload",
+        "key": "f5",
+        "when": "activeWebviewPanelId == 'HexPlusPlus.compare'"
+      }
     ],
     "configuration": {
       "title": "Hex++",
       "properties": {
         "HexPlusPlus.defaultUnit": {
           "type": "number",
-          "enum": [1, 2, 4],
+          "enum": [
+            1,
+            2,
+            4
+          ],
           "default": 1,
           "description": "%cfg.defaultUnit%"
         },
@@ -188,7 +499,21 @@
         },
         "HexPlusPlus.copy.defaultFormat": {
           "type": "string",
-          "enum": ["displayed", "hexOctets", "hex", "literal", "utf8", "c", "go", "java", "json", "base64", "ihex", "srec", "titxt"],
+          "enum": [
+            "displayed",
+            "hexOctets",
+            "hex",
+            "literal",
+            "utf8",
+            "c",
+            "go",
+            "java",
+            "json",
+            "base64",
+            "ihex",
+            "srec",
+            "titxt"
+          ],
           "default": "displayed",
           "description": "%cfg.copyDefaultFormat%"
         },
@@ -201,11 +526,17 @@
         },
         "HexPlusPlus.export.recordLength": {
           "type": "number",
-          "enum": [16, 32],
+          "enum": [
+            16,
+            32
+          ],
           "default": 16,
           "description": "%cfg.recordLength%"
         }
       }
     }
+  },
+  "dependencies": {
+    "@vscode/l10n": "^0.0.18"
   }
 }

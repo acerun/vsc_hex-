@@ -2,6 +2,12 @@
 // 字段值保存用户输入的原始文本，解析与校验由扩展侧完成，结果通过 preview() 回显到卡片上。
 // @ts-check
 (function () {
+  /** 文案翻译：扩展侧注入 window.HEXPP_L10N（英文原文 → 译文），未翻译时用原文；{0} {1} 为参数占位 */
+  // @ts-ignore
+  const L10N = window.HEXPP_L10N || {};
+  const t = (/** @type {string} */ s, /** @type {any[]} */ ...a) => String(L10N[s] ?? s).replace(/\{(\d+)\}/g, (_, i) => String(a[+i]));
+  // CSS 伪元素里的文案（tools.css .tinfo.busy::after）
+  document.documentElement.style.setProperty('--hexpp-busy-text', JSON.stringify(t(' · Computing…')));
   const esc = (/** @type {any} */ s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c);
   function fmtAddr(a) {
     const h = a.toString(16).toUpperCase().padStart(8, '0');
@@ -28,14 +34,16 @@
     return h + '</select>';
   }
   const row = (label, html) => `<div class="frow"><label>${label}</label><div class="fctl">${html}</div></div>`;
-  const rangeRow = (pre, o, label = '范围') =>
-    row(label, `<span class="pair">${input(pre + 'start', o.start, '起始', 'mono')}<span class="dash">–</span>${input(pre + 'end', o.end, '结束(含) 或 +长度', 'mono')}</span>`);
+  const rangeRow = (pre, o, label = t('Range')) =>
+    row(label, `<span class="pair">${input(pre + 'start', o.start, t('Start'), 'mono')}<span class="dash">–</span>${input(pre + 'end', o.end, t('End (incl.) or +length'), 'mono')}</span>`);
 
+  /** 算法分组的显示名（扩展侧发来的是英文 id） */
+  const groupName = (/** @type {string} */ g) => (g === 'Checksum' ? t('Checksums') : g === 'Hash' ? t('Hash') : g);
   function algoGroups(algos) {
     const groups = [];
     for (const a of algos) {
-      let g = groups.find((x) => x.label === a.group);
-      if (!g) groups.push((g = { label: a.group, items: [] }));
+      let g = groups.find((x) => x.label === groupName(a.group));
+      if (!g) groups.push((g = { label: groupName(a.group), items: [] }));
       g.items.push([a.id, a.name]);
     }
     return groups;
@@ -43,9 +51,9 @@
 
   // ---------------- 补丁 ----------------
   const PATCH_KINDS = [
-    ['checksum', '校验值'], ['number', '数值'], ['serial', '序列号'], ['time', '时间戳'], ['text', '文本'], ['bytes', '字节序列'],
+    ['checksum', t('Checksum value')], ['number', t('Value')], ['serial', t('Serial number')], ['time', t('Timestamp')], ['text', t('Text')], ['bytes', t('Byte sequence')],
   ];
-  const TIME_FORMATS = { unix: 'Unix 秒 (u32)', bcd: 'BCD YYYYMMDDhhmmss', ascii: '文本模板' };
+  const TIME_FORMATS = { unix: t('Unix seconds (u32)'), bcd: 'BCD YYYYMMDDhhmmss', ascii: t('Text template') };
 
   function patchDefaults(kind, ctx = {}) {
     const base = { kind, enabled: true, open: true, address: ctx.address || '' };
@@ -61,32 +69,32 @@
 
   function patchFields(p, pre, algos) {
     const k = (n) => pre + n;
-    const kind = row('类型', select(k('kind'), p.kind, [{ items: PATCH_KINDS }], true));
-    const addr = row('写入地址', input(k('address'), p.address, '如 0801_FFFC', 'mono'));
-    const endian = row('字节序', seg(k('le'), p.le !== false, [[true, '小端'], [false, '大端']]));
-    const size = row('大小', seg(k('size'), p.size || 4, [[1, 'u8'], [2, 'u16'], [4, 'u32']]));
+    const kind = row(t('Type'), select(k('kind'), p.kind, [{ items: PATCH_KINDS }], true));
+    const addr = row(t('Address'), input(k('address'), p.address, t('e.g. 0801_FFFC'), 'mono'));
+    const endian = row(t('Endian'), seg(k('le'), p.le !== false, [[true, t('LE')], [false, t('BE')]]));
+    const size = row(t('Size'), seg(k('size'), p.size || 4, [[1, 'u8'], [2, 'u16'], [4, 'u32']]));
     switch (p.kind) {
       case 'checksum': {
         const info = algos.find((a) => a.id === p.algo);
-        return kind + row('算法', select(k('algo'), p.algo, algoGroups(algos), true)) + rangeRow(pre, p) +
-          row('空洞', seg(k('holes'), p.holes || 'fill', [['fill', '填充'], ['skip', '跳过']]) +
+        return kind + row(t('Algorithm'), select(k('algo'), p.algo, algoGroups(algos), true)) + rangeRow(pre, p) +
+          row(t('Gaps'), seg(k('holes'), p.holes || 'fill', [['fill', t('Fill')], ['skip', t('Skip')]]) +
             (p.holes === 'skip' ? '' : input(k('fill'), p.fill ?? 'FF', 'FF', 'mono byte'))) +
           addr + (info && !info.numeric ? '' : endian);
       }
       case 'number':
-        return kind + size + row('值', input(k('value'), p.value, '十进制，或 0x 十六进制', 'mono')) + addr + endian;
+        return kind + size + row(t('Number'), input(k('value'), p.value, t('Decimal, or 0x hex'), 'mono')) + addr + endian;
       case 'serial':
-        return kind + size + row('当前值', input(k('value'), p.value, '应用后自动递增', 'mono')) +
-          row('步长', input(k('step'), p.step, '1', 'mono')) + addr + endian;
+        return kind + size + row(t('Current'), input(k('value'), p.value, t('Auto-increments after apply'), 'mono')) +
+          row(t('Increment'), input(k('step'), p.step, '1', 'mono')) + addr + endian;
       case 'time':
-        return kind + row('格式', select(k('timeFormat'), p.timeFormat || 'unix', [{ items: Object.entries(TIME_FORMATS) }], true)) +
-          (p.timeFormat === 'ascii' ? row('模板', input(k('template'), p.template, 'YYYY YY MM DD hh mm ss', 'mono')) : '') +
+        return kind + row(t('Format'), select(k('timeFormat'), p.timeFormat || 'unix', [{ items: Object.entries(TIME_FORMATS) }], true)) +
+          (p.timeFormat === 'ascii' ? row(t('Template'), input(k('template'), p.template, 'YYYY YY MM DD hh mm ss', 'mono')) : '') +
           addr + (p.timeFormat === 'unix' || !p.timeFormat ? endian : '');
       case 'text':
-        return kind + row('文本', input(k('value'), p.value, 'UTF-8，如 v1.2.3')) +
-          row('固定长度', input(k('length'), p.length, '可空；不足补 00', 'mono')) + addr;
+        return kind + row(t('Text'), input(k('value'), p.value, t('UTF-8, e.g. v1.2.3'))) +
+          row(t('Fixed length'), input(k('length'), p.length, t('Optional; padded with 00'), 'mono')) + addr;
       default:
-        return kind + row('字节', input(k('value'), p.value, 'DE AD BE EF', 'mono')) + addr;
+        return kind + row(t('Bytes'), input(k('value'), p.value, 'DE AD BE EF', 'mono')) + addr;
     }
   }
 
@@ -95,20 +103,20 @@
     switch (p.kind) {
       case 'checksum': {
         const a = algos.find((x) => x.id === p.algo);
-        return `<b>${esc(a ? a.name : '校验值')}</b> ${to}<span class="muted mono"> ${showAddr(p.start)}–${esc(p.end || '?')}</span>`;
+        return `<b>${esc(a ? a.name : t('Checksum value'))}</b> ${to}<span class="muted mono"> ${showAddr(p.start)}–${esc(p.end || '?')}</span>`;
       }
       case 'number': return `<b>u${(p.size || 4) * 8}</b> <span class="mono">${esc(p.value)}</span> ${to}`;
-      case 'serial': return `<b>序列号</b> <span class="mono">${esc(p.value)}</span><span class="muted"> (+${esc(p.step || '1')})</span> ${to}`;
-      case 'time': return `<b>时间戳</b> <span class="muted">${esc(TIME_FORMATS[p.timeFormat || 'unix'])}</span> ${to}`;
-      case 'text': return `<b>文本</b> “${esc(p.value)}” ${to}`;
-      default: return `<b>字节</b> <span class="mono">${esc(p.value)}</span> ${to}`;
+      case 'serial': return `<b>${t('Serial number')}</b> <span class="mono">${esc(p.value)}</span><span class="muted"> (+${esc(p.step || '1')})</span> ${to}`;
+      case 'time': return `<b>${t('Timestamp')}</b> <span class="muted">${esc(TIME_FORMATS[p.timeFormat || 'unix'])}</span> ${to}`;
+      case 'text': return `<b>${t('Text')}</b> “${esc(p.value)}” ${to}`;
+      default: return `<b>${t('Bytes')}</b> <span class="mono">${esc(p.value)}</span> ${to}`;
     }
   }
 
   // ---------------- 加工步骤 ----------------
   const STEP_OPS = [
-    ['offset', '地址偏移'], ['moveTo', '移动到地址'], ['crop', '裁剪（保留范围）'], ['remove', '删除范围'],
-    ['fill', '填充'], ['align', '段对齐'], ['patch', '写入补丁'],
+    ['offset', t('Address offset')], ['moveTo', t('Move to address')], ['crop', t('Crop (keep range)')], ['remove', t('Delete range')],
+    ['fill', t('Fill')], ['align', t('Align segments')], ['patch', t('Write patch')],
   ];
   const stepLabel = (op) => (STEP_OPS.find((x) => x[0] === op) || [op, op])[1];
 
@@ -125,13 +133,13 @@
   }
 
   function stepFields(s, algos) {
-    const byte = row('填充字节', input('byte', s.byte ?? 'FF', 'FF', 'mono byte'));
+    const byte = row(t('Fill byte'), input('byte', s.byte ?? 'FF', 'FF', 'mono byte'));
     switch (s.op) {
-      case 'offset': return row('偏移量', input('value', s.value, '+0800_0000 / -1000（十六进制）', 'mono'));
-      case 'moveTo': return row('起始地址', input('value', s.value, '整体移动，使首字节位于此地址', 'mono'));
+      case 'offset': return row(t('Offset amount'), input('value', s.value, t('+0800_0000 / -1000 (hex)'), 'mono'));
+      case 'moveTo': return row(t('Start address'), input('value', s.value, t('Shift everything so the first byte lands here'), 'mono'));
       case 'crop': case 'remove': return rangeRow('', s);
-      case 'fill': return rangeRow('', s) + byte + row('模式', seg('mode', s.mode || 'holes', [['holes', '仅空洞'], ['all', '覆盖全部']]));
-      case 'align': return row('对齐到', input('value', s.value, '字节数，如 0x800 或 2048', 'mono')) + byte;
+      case 'fill': return rangeRow('', s) + byte + row(t('Mode'), seg('mode', s.mode || 'holes', [['holes', t('Gaps only')], ['all', t('Overwrite all')]]));
+      case 'align': return row(t('Align to'), input('value', s.value, t('Byte count, e.g. 0x800 or 2048'), 'mono')) + byte;
       default: return patchFields(s.patch, 'patch.', algos);
     }
   }
@@ -139,13 +147,13 @@
   function stepTitle(s, algos) {
     const r = `<span class="mono">${showAddr(s.start)}–${esc(s.end || '?')}</span>`;
     switch (s.op) {
-      case 'offset': return `<b>偏移</b> <span class="mono">${esc(s.value)}</span>`;
-      case 'moveTo': return `<b>移动到</b> <span class="mono">${showAddr(s.value)}</span>`;
-      case 'crop': return `<b>裁剪</b> ${r}`;
-      case 'remove': return `<b>删除</b> ${r}`;
-      case 'fill': return `<b>填充</b> ${r} <span class="muted">= ${esc(s.byte)}${s.mode === 'all' ? '（覆盖）' : '（空洞）'}</span>`;
-      case 'align': return `<b>段对齐</b> <span class="mono">${esc(s.value)}</span> <span class="muted">= ${esc(s.byte)}</span>`;
-      default: return `<span class="tag">写入</span> ${patchTitle(s.patch, algos)}`;
+      case 'offset': return `<b>${t('Offset')}</b> <span class="mono">${esc(s.value)}</span>`;
+      case 'moveTo': return `<b>${t('Move to')}</b> <span class="mono">${showAddr(s.value)}</span>`;
+      case 'crop': return `<b>${t('Crop')}</b> ${r}`;
+      case 'remove': return `<b>${t('Delete')}</b> ${r}`;
+      case 'fill': return `<b>${t('Fill')}</b> ${r} <span class="muted">= ${esc(s.byte)}${s.mode === 'all' ? t('(overwrite)') : t('(gaps)')}</span>`;
+      case 'align': return `<b>${t('Align segments')}</b> <span class="mono">${esc(s.value)}</span> <span class="muted">= ${esc(s.byte)}</span>`;
+      default: return `<span class="tag">${t('Write')}</span> ${patchTitle(s.patch, algos)}`;
     }
   }
 
@@ -178,9 +186,9 @@
 
     function cardHtml(it, i) {
       return `<div class="card${it.enabled ? '' : ' off'}${it.open ? ' open' : ''}" data-i="${i}">
-        <div class="chead"><input type="checkbox" data-act="toggle" ${it.enabled ? 'checked' : ''} title="启用 / 停用">
+        <div class="chead"><input type="checkbox" data-act="toggle" ${it.enabled ? 'checked' : ''} title="${t('Enable / disable')}">
           <span class="cidx">${i + 1}</span><span class="ctitle">${o.title(it)}</span>
-          <span class="cact"><button data-act="up" title="上移">▲</button><button data-act="down" title="下移">▼</button><button data-act="del" title="删除">✕</button></span></div>
+          <span class="cact"><button data-act="up" title="${t('Move up')}">▲</button><button data-act="down" title="${t('Move down')}">▼</button><button data-act="del" title="${t('Delete')}">✕</button></span></div>
         <div class="cbody">${o.fields(it)}</div><div class="cprev"></div></div>`;
     }
     function render() {
@@ -210,7 +218,7 @@
         card.querySelectorAll('[data-k].bad').forEach((x) => x.classList.remove('bad'));
         card.classList.toggle('err', !!r.error && items[i].enabled);
         let h = '';
-        if (!items[i].enabled) h = '<span class="muted">已停用</span>';
+        if (!items[i].enabled) h = `<span class="muted">${t('Disabled')}</span>`;
         else if (r.error) {
           h = `<span class="err">✕ ${esc(r.error)}</span>`;
           const f = r.field && card.querySelector(`[data-k="${r.field}"]`);
@@ -310,7 +318,7 @@
 
   // @ts-ignore
   window.HexppTools = {
-    esc, fmtAddr, PATCH_KINDS, STEP_OPS, stepLabel,
+    t, esc, fmtAddr, PATCH_KINDS, STEP_OPS, stepLabel,
     patchDefaults, patchFields, patchTitle, stepDefaults, stepFields, stepTitle,
     cardList, menu,
   };

@@ -1,5 +1,6 @@
 // 写入补丁：把校验值、数值、字节、文本、时间戳、序列号写到映像的指定地址（只覆盖已有字节）。
 // 补丁按列表顺序依次规划，后面的校验值能看到前面补丁写入的结果。
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, cloneImage, hex, isCovered, writeBytes } from './formats';
 import { CrcModel, algoInfo, checksumImage, valueBytes } from './checksum';
 import { FieldError, need, parseAddress, parseByte, parseHexBytes, parseRange, parseValue } from './numbers';
@@ -50,19 +51,20 @@ export interface PatchWrite {
   bytes: Uint8Array;
 }
 
+// label 用 getter 延迟翻译（模块加载时 l10n 尚未配置）
 export const PATCH_KINDS: { kind: PatchKind; label: string }[] = [
-  { kind: 'checksum', label: '校验值' },
-  { kind: 'number', label: '数值' },
-  { kind: 'serial', label: '序列号' },
-  { kind: 'time', label: '时间戳' },
-  { kind: 'text', label: '文本' },
-  { kind: 'bytes', label: '字节序列' },
+  { kind: 'checksum', get label() { return l10n.t('Checksum value'); } },
+  { kind: 'number', get label() { return l10n.t('Numeric value'); } },
+  { kind: 'serial', get label() { return l10n.t('Serial number'); } },
+  { kind: 'time', get label() { return l10n.t('Timestamp'); } },
+  { kind: 'text', get label() { return l10n.t('Text'); } },
+  { kind: 'bytes', get label() { return l10n.t('Byte sequence'); } },
 ];
 
 function intBytes(v: number, size: number, le: boolean, field: string): Uint8Array {
   const max = 2 ** (8 * size);
   if (!Number.isInteger(v) || v < -max / 2 || v >= max) {
-    throw new FieldError(field, `数值超出 ${size * 8} 位范围`);
+    throw new FieldError(field, l10n.t('Value is out of range for {0} bits', size * 8));
   }
   if (v < 0) {
     v += max;
@@ -98,25 +100,25 @@ export function patchBytes(img: MemoryImage, spec: PatchSpec, address: number, o
     case 'checksum': {
       const info = algoInfo(spec.algo ?? '', opts.custom);
       if (!info) {
-        throw new FieldError('algo', '请选择算法');
+        throw new FieldError('algo', l10n.t('Select an algorithm'));
       }
       const r = parseRange(spec.start, spec.end);
-      const fill = spec.holes === 'skip' ? undefined : need(parseByte(spec.fill ?? 'FF'), 'fill', '填充字节无效');
+      const fill = spec.holes === 'skip' ? undefined : need(parseByte(spec.fill ?? 'FF'), 'fill', l10n.t('Invalid fill byte'));
       const res = checksumImage(img, [info.id], r.start, r.end, { fill, le, custom: opts.custom }).results[0];
       if (res.error) {
         throw new FieldError('algo', res.error);
       }
       const bytes = valueBytes(info, res.value!, le);
       const overlap = address < r.end && address + bytes.length > r.start;
-      return { bytes, warning: overlap ? '校验范围包含写入地址：结果会随写入值变化' : undefined };
+      return { bytes, warning: overlap ? l10n.t('The checksum range includes the write address: the result will change with the written value') : undefined };
     }
     case 'number':
     case 'serial':
-      return { bytes: intBytes(need(parseValue(spec.value), 'value', '数值无效'), spec.size ?? 4, le, 'value') };
+      return { bytes: intBytes(need(parseValue(spec.value), 'value', l10n.t('Invalid value')), spec.size ?? 4, le, 'value') };
     case 'bytes': {
       const b = parseHexBytes(spec.value);
       if (!b) {
-        throw new FieldError('value', '请输入十六进制字节，如 DE AD BE EF');
+        throw new FieldError('value', l10n.t('Enter hex bytes, e.g. DE AD BE EF'));
       }
       return { bytes: b };
     }
@@ -125,16 +127,16 @@ export function patchBytes(img: MemoryImage, spec: PatchSpec, address: number, o
       const lenText = (spec.length ?? '').trim();
       if (!lenText) {
         if (!t.length) {
-          throw new FieldError('value', '文本为空');
+          throw new FieldError('value', l10n.t('Text is empty'));
         }
         return { bytes: t };
       }
-      const len = need(parseValue(lenText), 'length', '长度无效');
+      const len = need(parseValue(lenText), 'length', l10n.t('Invalid length'));
       if (len <= 0) {
-        throw new FieldError('length', '长度必须大于 0');
+        throw new FieldError('length', l10n.t('Length must be greater than 0'));
       }
       if (t.length > len) {
-        throw new FieldError('value', `文本 ${t.length} 字节，超过固定长度 ${len}`);
+        throw new FieldError('value', l10n.t('Text is {0} bytes, exceeding the fixed length {1}', t.length, len));
       }
       const out = new Uint8Array(len);
       out.set(t);
@@ -166,11 +168,11 @@ export function planPatches(img: MemoryImage, specs: PatchSpec[], opts: PatchOpt
       return { skipped: true };
     }
     try {
-      const address = need(parseAddress(spec.address), 'address', '写入地址无效');
+      const address = need(parseAddress(spec.address), 'address', l10n.t('Invalid write address'));
       const { bytes, warning } = patchBytes(work ?? img, spec, address, opts);
       const end = address + bytes.length;
       if (!isCovered(img, address, end)) {
-        throw new FieldError('address', `0x${hex(address, 8)}–0x${hex(end - 1, 8)} 含地址空洞，不能写入`);
+        throw new FieldError('address', l10n.t('0x{0}–0x{1} contains an address gap and cannot be written', hex(address, 8), hex(end - 1, 8)));
       }
       work ??= cloneImage(img);
       writeBytes(work, address, bytes);
@@ -189,7 +191,7 @@ export function planPatches(img: MemoryImage, specs: PatchSpec[], opts: PatchOpt
     const later = writes.slice(i + 1).some(w => w.address < r.end && w.address + w.bytes.length > r.start);
     if (later) {
       const res = byWrite[i];
-      res.warning = [res.warning, '后面的补丁会改动校验范围内的数据，请把校验值补丁移到最后'].filter(Boolean).join('；');
+      res.warning = [res.warning, l10n.t('A later patch modifies data within the checksum range; move the checksum patch to the end')].filter(Boolean).join(l10n.t('; '));
     }
   });
   return { results, writes };

@@ -1,5 +1,6 @@
 // 固件加工面板：多个输入 → 各自偏移 → 合并 → 步骤列表 → 输出（可拆分），任何修改都即时预览。
 import * as vscode from 'vscode';
+import * as l10n from '@vscode/l10n';
 import * as path from 'path';
 import { FORMAT_INFO, FormatId, MemoryImage, cloneImage, hex, imageRange, imageSize, parseImage, serializeImage } from './formats';
 import { OverlapPolicy, SplitMode, StepSpec, runPipeline, splitImage } from './transform';
@@ -8,6 +9,7 @@ import { checksumImage, formatDigest, algoInfo } from './checksum';
 import { FieldError, parseAddress, parseByte, parseValue } from './numbers';
 import { algoList, customCrc, fillByte, resultPayload } from './tools';
 import { exportOptions } from './convert';
+import { webviewL10n } from './webview';
 
 interface Input {
   id: number;
@@ -39,7 +41,7 @@ export class ProcessPanel {
 
   /** sources：资源管理器选中的文件；来自编辑器时附带当前映像（含未保存修改） */
   static open(ctx: vscode.ExtensionContext, sources: { uri: vscode.Uri; image?: MemoryImage }[]) {
-    const panel = vscode.window.createWebviewPanel(ProcessPanel.viewType, 'Hex++ 固件加工', vscode.ViewColumn.Active, {
+    const panel = vscode.window.createWebviewPanel(ProcessPanel.viewType, l10n.t('Hex++ Firmware Processing'), vscode.ViewColumn.Active, {
       enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [vscode.Uri.joinPath(ctx.extensionUri, 'media')],
@@ -62,11 +64,11 @@ export class ProcessPanel {
           case 'importRecipe': await this.importRecipe(); break;
           case 'clipboard':
             await vscode.env.clipboard.writeText(m.text);
-            vscode.window.setStatusBarMessage(`Hex++: 已复制 ${m.text}`, 3000);
+            vscode.window.setStatusBarMessage(l10n.t('Hex++: Copied {0}', m.text), 3000);
             break;
         }
       } catch (e) {
-        vscode.window.showErrorMessage(`Hex++: ${(e as Error).message}`);
+        vscode.window.showErrorMessage(l10n.t('Hex++: {0}', (e as Error).message));
       }
     });
     panel.onDidDispose(() => sub.dispose());
@@ -100,13 +102,13 @@ export class ProcessPanel {
           id: this.nextId++,
           name: s.uri.path.split('/').pop() ?? s.uri.toString(),
           path: s.uri.scheme === 'file' ? s.uri.fsPath : s.uri.toString(),
-          note: s.image ? '来自编辑器（含未保存的修改）' : undefined,
+          note: s.image ? l10n.t('From editor (includes unsaved changes)') : undefined,
           image,
         };
         this.inputs.set(inp.id, inp);
         added.push(inp);
       } catch (e) {
-        vscode.window.showErrorMessage(`Hex++: 无法读取 ${s.uri.fsPath}：${(e as Error).message}`);
+        vscode.window.showErrorMessage(l10n.t('Hex++: Cannot read {0}: {1}', s.uri.fsPath, (e as Error).message));
       }
     }
     if (added.length) {
@@ -135,7 +137,7 @@ export class ProcessPanel {
   }
 
   private async pickFiles() {
-    const uris = await vscode.window.showOpenDialog({ canSelectMany: true, title: '添加输入文件（可多选）', defaultUri: this.baseDir() });
+    const uris = await vscode.window.showOpenDialog({ canSelectMany: true, title: l10n.t('Add Input Files (multiple allowed)'), defaultUri: this.baseDir() });
     if (uris?.length) {
       await this.addSources(uris.map(uri => ({ uri })));
     }
@@ -159,14 +161,14 @@ export class ProcessPanel {
         const parts = splitImage(res.image, this.splitMode(cfg));
         const base = cfg.output.path.trim().replace(/\.[^./\\]*$/, '');
         if (!base) {
-          throw new FieldError('path', '请选择输出路径');
+          throw new FieldError('path', l10n.t('Select an output path'));
         }
         const ext = '.' + FORMAT_INFO[fmt].ext;
         files = cfg.output.split === 'none'
           ? parts.map(p => ({ path: base + ext, ...p }))
           : parts.map(p => ({ path: `${base}_${hex(p.address, 8)}${ext}`, ...p }));
         if (fmt === 'bin' && Number.isNaN(parseByte(cfg.output.fill))) {
-          throw new FieldError('fill', '填充字节无效');
+          throw new FieldError('fill', l10n.t('Invalid fill byte'));
         }
       } catch (e) {
         outError = (e as Error).message;
@@ -183,14 +185,14 @@ export class ProcessPanel {
       case 'size': {
         const n = parseValue(v);
         if (!Number.isInteger(n) || n < 16) {
-          throw new FieldError('splitValue', '拆分大小无效（字节数，如 0x10000 或 65536）');
+          throw new FieldError('splitValue', l10n.t('Invalid split size (in bytes, e.g. 0x10000 or 65536)'));
         }
         return { by: 'size', size: n };
       }
       case 'boundary': {
         const list = v.split(/[\s,;]+/).filter(Boolean).map(parseAddress);
         if (!list.length || list.some(Number.isNaN)) {
-          throw new FieldError('splitValue', '拆分地址无效（十六进制，逗号分隔）');
+          throw new FieldError('splitValue', l10n.t('Invalid split addresses (hexadecimal, comma-separated)'));
         }
         return { by: 'boundary', addresses: list };
       }
@@ -238,7 +240,7 @@ export class ProcessPanel {
     const target = await vscode.window.showSaveDialog({
       defaultUri: cur ? vscode.Uri.file(cur.replace(/\.[^./\\]*$/, '') + '.' + FORMAT_INFO[fmt].ext) : this.baseDir(),
       filters: { [FORMAT_INFO[fmt].label]: [FORMAT_INFO[fmt].ext], 'All Files': ['*'] },
-      title: '输出文件',
+      title: l10n.t('Output File'),
     });
     if (target) {
       this.post({ type: 'outputPath', path: target.fsPath });
@@ -252,24 +254,24 @@ export class ProcessPanel {
     }
     const { res, files, outError } = this.run(cfg);
     if (!res.image || outError) {
-      vscode.window.showErrorMessage(`Hex++: 无法生成：${res.error ?? outError}`);
+      vscode.window.showErrorMessage(l10n.t('Hex++: Cannot generate: {0}', res.error ?? outError ?? ''));
       return;
     }
     const stepErr = res.steps.filter(s => s.error).length;
     if (stepErr) {
-      const go = '仍然生成';
-      if (await vscode.window.showWarningMessage(`Hex++: ${stepErr} 个步骤有错误，已跳过这些步骤。`, { modal: true }, go) !== go) {
+      const go = l10n.t('Generate Anyway');
+      if (await vscode.window.showWarningMessage(l10n.t('Hex++: {0} steps have errors and were skipped.', stepErr), { modal: true }, go) !== go) {
         return;
       }
     }
     if (!files.length) {
-      vscode.window.showErrorMessage('Hex++: 结果没有数据');
+      vscode.window.showErrorMessage(l10n.t('Hex++: The result contains no data'));
       return;
     }
     const exists = (await Promise.all(files.map(f => vscode.workspace.fs.stat(vscode.Uri.file(f.path)).then(() => true, () => false)))).filter(Boolean).length;
     if (exists) {
-      const go = '覆盖';
-      if (await vscode.window.showWarningMessage(`Hex++: ${exists} 个输出文件已存在，是否覆盖？`, { modal: true }, go) !== go) {
+      const go = l10n.t('Overwrite');
+      if (await vscode.window.showWarningMessage(l10n.t('Hex++: {0} output files already exist. Overwrite?', exists), { modal: true }, go) !== go) {
         return;
       }
     }
@@ -284,14 +286,14 @@ export class ProcessPanel {
       this.preview();
     }
     const first = vscode.Uri.file(files[0].path);
-    const msg = files.length === 1 ? `已生成 ${files[0].path}` : `已生成 ${files.length} 个文件：${path.dirname(files[0].path)}`;
-    this.post({ type: 'generated', text: files.length === 1 ? `已生成 ${path.basename(files[0].path)}` : `已生成 ${files.length} 个文件` });
+    const msg = files.length === 1 ? l10n.t('Generated {0}', files[0].path) : l10n.t('Generated {0} files: {1}', files.length, path.dirname(files[0].path));
+    this.post({ type: 'generated', text: files.length === 1 ? l10n.t('Generated {0}', path.basename(files[0].path)) : l10n.t('Generated {0} files', files.length) });
     if (open) {
       await vscode.commands.executeCommand('vscode.openWith', first, 'HexPlusPlus.hexEdit', vscode.ViewColumn.Beside);
       return;
     }
-    const reveal = '在资源管理器中显示', openIt = '用 Hex++ 打开';
-    const pick = await vscode.window.showInformationMessage(`Hex++: ${msg}`, openIt, reveal);
+    const reveal = l10n.t('Reveal in File Explorer'), openIt = l10n.t('Open with Hex++');
+    const pick = await vscode.window.showInformationMessage(l10n.t('Hex++: {0}', msg), openIt, reveal);
     if (pick === openIt) {
       await vscode.commands.executeCommand('vscode.openWith', first, 'HexPlusPlus.hexEdit', vscode.ViewColumn.Beside);
     } else if (pick === reveal) {
@@ -307,8 +309,8 @@ export class ProcessPanel {
     }
     const target = await vscode.window.showSaveDialog({
       defaultUri: cfg.output.path ? vscode.Uri.file(cfg.output.path.replace(/\.[^./\\]*$/, '') + '.hexpp.json') : this.baseDir(),
-      filters: { 'Hex++ 加工方案': ['json'] },
-      title: '导出加工方案',
+      filters: { [l10n.t('Hex++ Processing Recipe')]: ['json'] },
+      title: l10n.t('Export Processing Recipe'),
     });
     if (!target) {
       return;
@@ -325,17 +327,17 @@ export class ProcessPanel {
       output: { ...cfg.output, path: cfg.output.path ? rel(cfg.output.path) : '' },
     };
     await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(JSON.stringify(recipe, null, 2)));
-    vscode.window.setStatusBarMessage(`Hex++: 已导出加工方案 ${path.basename(target.fsPath)}`, 3000);
+    vscode.window.setStatusBarMessage(l10n.t('Hex++: Exported processing recipe {0}', path.basename(target.fsPath)), 3000);
   }
 
   private async importRecipe() {
-    const pick = await vscode.window.showOpenDialog({ filters: { 'Hex++ 加工方案': ['json'] }, title: '导入加工方案', defaultUri: this.baseDir() });
+    const pick = await vscode.window.showOpenDialog({ filters: { [l10n.t('Hex++ Processing Recipe')]: ['json'] }, title: l10n.t('Import Processing Recipe'), defaultUri: this.baseDir() });
     if (!pick?.[0]) {
       return;
     }
     const j = JSON.parse(new TextDecoder().decode(await vscode.workspace.fs.readFile(pick[0])));
     if (j?.hexpp !== 'process' || !Array.isArray(j.inputs) || !Array.isArray(j.steps)) {
-      throw new Error('不是 Hex++ 加工方案文件');
+      throw new Error(l10n.t('Not a Hex++ processing recipe file'));
     }
     const dir = path.dirname(pick[0].fsPath);
     const abs = (p: string) => (path.isAbsolute(p) ? p : path.resolve(dir, p));
@@ -348,7 +350,7 @@ export class ProcessPanel {
         this.inputs.set(inp.id, inp);
         inputs.push({ ...this.inputInfo(inp), offset: i.offset ?? '' });
       } catch (e) {
-        vscode.window.showWarningMessage(`Hex++: 方案中的输入文件无法读取：${uri.fsPath}`);
+        vscode.window.showWarningMessage(l10n.t('Hex++: Cannot read input file in recipe: {0}', uri.fsPath));
       }
     }
     const output = { ...j.output, path: j.output?.path ? abs(j.output.path) : '' };
@@ -359,8 +361,9 @@ export class ProcessPanel {
     const webview = this.panel.webview;
     const nonce = Array.from({ length: 24 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
     const media = (f: string) => webview.asWebviewUri(vscode.Uri.joinPath(extUri, 'media', f));
+    const wl = webviewL10n(nonce);
     return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${wl.lang}">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
@@ -370,6 +373,7 @@ export class ProcessPanel {
 <link href="${media('process.css')}" rel="stylesheet">
 </head>
 <body class="process">
+${wl.script}
 <script nonce="${nonce}" src="${media('toolsui.js')}"></script>
 <script nonce="${nonce}" src="${media('process.js')}"></script>
 </body>

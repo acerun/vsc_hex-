@@ -1,4 +1,5 @@
 // 选中字节 → 各种文本格式。纯函数，不依赖 vscode，便于单元测试。
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, Segment, hex } from './formats/image';
 import { writeIhex } from './formats/ihex';
 import { writeSrec } from './formats/srec';
@@ -9,8 +10,9 @@ export type CopyFormat =
   | 'c' | 'go' | 'java' | 'json' | 'base64'
   | 'ihex' | 'srec' | 'titxt';
 
+// label 用 getter 延迟翻译（模块加载时 l10n 尚未配置）
 export const COPY_FORMATS: { id: CopyFormat; label: string }[] = [
-  { id: 'displayed', label: '按显示 (1/2/4 字节单元)' },
+  { id: 'displayed', get label() { return l10n.t('As displayed (1/2/4-byte units)'); } },
   { id: 'hexOctets', label: 'Hex Octets' },
   { id: 'hex', label: 'Hex' },
   { id: 'literal', label: 'Literal' },
@@ -20,9 +22,9 @@ export const COPY_FORMATS: { id: CopyFormat; label: string }[] = [
   { id: 'java', label: 'Java' },
   { id: 'json', label: 'JSON' },
   { id: 'base64', label: 'Base64' },
-  { id: 'ihex', label: 'Intel HEX (带地址)' },
-  { id: 'srec', label: 'S-Record (带地址)' },
-  { id: 'titxt', label: 'TI-TXT (带地址)' },
+  { id: 'ihex', get label() { return l10n.t('Intel HEX (with addresses)'); } },
+  { id: 'srec', get label() { return l10n.t('S-Record (with addresses)'); } },
+  { id: 'titxt', get label() { return l10n.t('TI-TXT (with addresses)'); } },
 ];
 
 export interface CopyOptions {

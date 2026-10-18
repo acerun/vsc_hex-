@@ -1,3 +1,4 @@
+import * as l10n from '@vscode/l10n';
 import { FormatId, MemoryImage, flatten, hex } from './image';
 import { parseSrec, writeSrec } from './srec';
 import { parseIhex, writeIhex } from './ihex';
@@ -71,12 +72,12 @@ export function binExportNote(img: MemoryImage, fillByte: number): string | unde
   }
   const notes: string[] = [];
   if (segs[0].address !== 0) {
-    notes.push(`BIN 不含地址信息，起始地址 0x${hex(segs[0].address, 8)} 对应文件偏移 0`);
+    notes.push(l10n.t('BIN has no address information; start address 0x{0} maps to file offset 0', hex(segs[0].address, 8)));
   }
   if (segs.length > 1) {
-    notes.push(`${segs.length - 1} 处地址空洞已用 0x${hex(fillByte, 2)} 填充`);
+    notes.push(l10n.t('{0} address gaps filled with 0x{1}', segs.length - 1, hex(fillByte, 2)));
   }
-  return notes.length ? notes.join('；') : undefined;
+  return notes.length ? notes.join(l10n.t('; ')) : undefined;
 }
 
 function latin1(bytes: Uint8Array): string {

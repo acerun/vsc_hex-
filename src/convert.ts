@@ -1,5 +1,6 @@
 // 另存为 / 格式互转：BIN、Intel HEX、S-Record、TI-TXT 任意互转；ELF 只能原样另存（含编辑）。
 import * as vscode from 'vscode';
+import * as l10n from '@vscode/l10n';
 import { FORMAT_INFO, FormatId, MemoryImage, binExportNote, hex, parseImage, serializeImage } from './formats';
 
 export function exportOptions() {
@@ -16,10 +17,10 @@ export async function saveAsFormat(uri: vscode.Uri, image?: MemoryImage) {
   const pick = await vscode.window.showQuickPick(
     targets.map(f => ({
       label: FORMAT_INFO[f].label,
-      description: '.' + FORMAT_INFO[f].ext + (f === src.format ? '  （当前格式）' : ''),
+      description: '.' + FORMAT_INFO[f].ext + (f === src.format ? l10n.t('  (current format)') : ''),
       id: f,
     })),
-    { title: `Hex++: 另存为 — 源格式 ${FORMAT_INFO[src.format].label}`, placeHolder: '选择目标格式' },
+    { title: l10n.t('Hex++: Save As — source format {0}', FORMAT_INFO[src.format].label), placeHolder: l10n.t('Select target format') },
   );
   if (!pick) {
     return;
@@ -30,10 +31,10 @@ export async function saveAsFormat(uri: vscode.Uri, image?: MemoryImage) {
   // BIN 不含地址：转为带地址的格式时询问起始地址
   if (src.format === 'bin' && fmt !== 'bin') {
     const input = await vscode.window.showInputBox({
-      title: 'Hex++: BIN 起始地址',
-      prompt: 'BIN 文件不含地址信息，请输入数据在目标中的起始地址（十六进制），如 0x08000000',
+      title: l10n.t('Hex++: BIN start address'),
+      prompt: l10n.t('BIN files contain no address information. Enter the start address of the data in the target (hexadecimal), e.g. 0x08000000'),
       value: '0x00000000',
-      validateInput: v => (/^(0x)?[0-9a-f]{1,8}$/i.test(v.trim().replace(/_/g, '')) ? undefined : '请输入 32 位以内的十六进制地址'),
+      validateInput: v => (/^(0x)?[0-9a-f]{1,8}$/i.test(v.trim().replace(/_/g, '')) ? undefined : l10n.t('Enter a hexadecimal address of at most 32 bits')),
     });
     if (input === undefined) {
       return;
@@ -47,7 +48,7 @@ export async function saveAsFormat(uri: vscode.Uri, image?: MemoryImage) {
   try {
     bytes = serializeImage(img, fmt, opts);
   } catch (e) {
-    vscode.window.showErrorMessage(`Hex++: ${(e as Error).message}`);
+    vscode.window.showErrorMessage(l10n.t('Hex++: {0}', (e as Error).message));
     return;
   }
 
@@ -58,7 +59,7 @@ export async function saveAsFormat(uri: vscode.Uri, image?: MemoryImage) {
   }
   const target = await vscode.window.showSaveDialog({
     defaultUri,
-    title: `另存为 ${FORMAT_INFO[fmt].label}`,
+    title: l10n.t('Save As {0}', FORMAT_INFO[fmt].label),
     filters: { [FORMAT_INFO[fmt].label]: [FORMAT_INFO[fmt].ext], 'All Files': ['*'] },
   });
   if (!target) {
@@ -67,10 +68,10 @@ export async function saveAsFormat(uri: vscode.Uri, image?: MemoryImage) {
   await vscode.workspace.fs.writeFile(target, bytes);
 
   const note = fmt === 'bin' ? binExportNote(img, opts.fillByte) : undefined;
-  const open = '打开';
-  const msg = `已保存为 ${FORMAT_INFO[fmt].label}：${target.fsPath}（${bytes.length.toLocaleString('en-US')} 字节）` +
-    (note ? `。注意：${note}` : '') +
-    (img.entry !== undefined && fmt === 'bin' ? `；入口地址 0x${hex(img.entry, 8)} 未保留` : '');
+  const open = l10n.t('Open');
+  const msg = l10n.t('Saved as {0}: {1} ({2} bytes)', FORMAT_INFO[fmt].label, target.fsPath, bytes.length.toLocaleString('en-US')) +
+    (note ? l10n.t('. Note: {0}', note) : '') +
+    (img.entry !== undefined && fmt === 'bin' ? l10n.t('; entry address 0x{0} was not preserved', hex(img.entry, 8)) : '');
   const r = await (note ? vscode.window.showWarningMessage(msg, open) : vscode.window.showInformationMessage(msg, open));
   if (r === open) {
     await vscode.commands.executeCommand('vscode.openWith', target, 'HexPlusPlus.hexEdit');

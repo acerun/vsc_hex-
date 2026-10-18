@@ -1,4 +1,5 @@
 // 精简 ELF 解析：只取 PT_LOAD 段（按物理地址 p_paddr 放置）和入口点。
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, Segment, normalize, readBytes } from './image';
 
 export function isElf(bytes: Uint8Array): boolean {
@@ -7,7 +8,7 @@ export function isElf(bytes: Uint8Array): boolean {
 
 export function parseElf(bytes: Uint8Array): MemoryImage {
   if (!isElf(bytes)) {
-    throw new Error('不是 ELF 文件');
+    throw new Error(l10n.t('Not an ELF file'));
   }
   const is64 = bytes[4] === 2;
   const le = bytes[5] !== 2;
@@ -27,7 +28,7 @@ export function parseElf(bytes: Uint8Array): MemoryImage {
   for (let i = 0; i < phnum; i++) {
     const p = phoff + i * phentsize;
     if (p + phentsize > bytes.length) {
-      warnings.push(`程序头 ${i} 超出文件范围`);
+      warnings.push(l10n.t('Program header {0} is outside the file', i));
       break;
     }
     if (u32(p) !== 1) {
@@ -40,7 +41,7 @@ export function parseElf(bytes: Uint8Array): MemoryImage {
       continue;
     }
     if (offset + filesz > bytes.length) {
-      warnings.push(`PT_LOAD 段 ${i} 超出文件范围`);
+      warnings.push(l10n.t('PT_LOAD segment {0} is outside the file', i));
       continue;
     }
     chunks.push({ address: paddr, data: bytes.slice(offset, offset + filesz) });
@@ -52,7 +53,7 @@ export function parseElf(bytes: Uint8Array): MemoryImage {
 /** 把映像中（可能已编辑）的段数据回写到原始 ELF 文件对应偏移。 */
 export function writeElf(img: MemoryImage): Uint8Array {
   if (!img.elf) {
-    throw new Error('只能从 ELF 文件保存为 ELF');
+    throw new Error(l10n.t('Can only save as ELF from an ELF file'));
   }
   const out = img.elf.raw.slice();
   for (const l of img.elf.loads) {

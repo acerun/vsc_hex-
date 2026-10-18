@@ -1,5 +1,6 @@
 // 自定义编辑器：HexPlusPlus.hexEdit（读写，撤销/重做/保存/备份/磁盘变更检测）与 HexPlusPlus.view（只读）。
 import * as vscode from 'vscode';
+import * as l10n from '@vscode/l10n';
 import { FormatId, MemoryImage, parseImage, serializeImage, readBytes, writeBytes } from './formats';
 import { layoutRanges } from './layout';
 import {
@@ -118,12 +119,12 @@ export class HexDocument implements vscode.CustomDocument {
       }
       if (!this.dirty) {
         await this.reload();
-        this.panel?.webview.postMessage({ type: 'flash', text: '文件已被外部修改，已自动重新加载' });
+        this.panel?.webview.postMessage({ type: 'flash', text: l10n.t('File changed on disk and was reloaded automatically') });
         return;
       }
-      const reload = '重新加载（放弃修改）';
+      const reload = l10n.t('Reload (Discard Changes)');
       const pick = await vscode.window.showWarningMessage(
-        `${this.uri.fsPath} 已被外部程序修改，而编辑器中有未保存的修改。`, reload, '保留我的修改');
+        l10n.t('{0} was modified by another program, and the editor has unsaved changes.', this.uri.fsPath), reload, l10n.t('Keep My Changes'));
       if (pick === reload) {
         this.panel?.reveal();
         await vscode.commands.executeCommand('workbench.action.files.revert');
@@ -164,7 +165,7 @@ function setupPanel(ctx: vscode.ExtensionContext, doc: HexDocument, panel: vscod
     docUri: doc.uri,
     fill: emitter && ((start, end, pattern) => {
       const data = new Uint8Array(end - start).map((_, i) => pattern[i % pattern.length]);
-      doc.edit(start, data, true, emitter, '填充');
+      doc.edit(start, data, true, emitter, l10n.t('Fill'));
     }),
     applyWrites: emitter && ((writes, label) => doc.editMany(writes, true, emitter, label)),
   };
@@ -191,7 +192,7 @@ function setupPanel(ctx: vscode.ExtensionContext, doc: HexDocument, panel: vscod
         case 'copy': await copySelection(target); break;
         case 'edit':
           if (editable && emitter) {
-            doc.edit(m.addr, Uint8Array.from(m.data), false, emitter, '编辑');
+            doc.edit(m.addr, Uint8Array.from(m.data), false, emitter, l10n.t('Edit'));
           }
           break;
         case 'saveAs': await saveAsFormat(doc.uri, doc.image); break;
@@ -233,7 +234,7 @@ export class HexEditorProvider implements vscode.CustomEditorProvider<HexDocumen
   async saveCustomDocumentAs(doc: HexDocument, target: vscode.Uri): Promise<void> {
     const fmt = formatForPath(target.path, doc.image.format);
     if (fmt === 'elf' && !doc.image.elf) {
-      throw new Error('只能从 ELF 文件保存为 ELF');
+      throw new Error(l10n.t('Only an ELF file can be saved as ELF'));
     }
     await doc.save(target, fmt);
   }

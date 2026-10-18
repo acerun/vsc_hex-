@@ -5,7 +5,9 @@ out/test/**
 **/*.map
 tsconfig.json
 node_modules/**
+!node_modules/@vscode/l10n/**
 .vscode/**
+.vscode-test/**
 AGENTS.md
 TODO.md
 update-extension.ps1

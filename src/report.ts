@@ -1,4 +1,5 @@
 // 对比报告：独立 HTML，包含摘要统计与逐行对比表（相同的大块区域折叠）。
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, FORMAT_INFO, hex, imageSize } from './formats';
 import { DiffResult } from './diff';
 import { ROW_BYTES, layoutDiffOnly } from './layout';
@@ -38,7 +39,7 @@ function cells(v: number[], o: number[]) {
   return `<td class="h">${h}</td><td class="t">${t}</td>`;
 }
 
-export function buildReport(left: ReportSide, right: ReportSide, diff: DiffResult, now = new Date()): string {
+export function buildReport(left: ReportSide, right: ReportSide, diff: DiffResult, now = new Date(), lang = 'en'): string {
   const runs = layoutDiffOnly(diff.blocks, diff.union);
   const rows: string[] = [];
   for (const r of runs) {
@@ -50,14 +51,17 @@ export function buildReport(left: ReportSide, right: ReportSide, diff: DiffResul
         rows.push(`<tr${differs ? ' class="rd"' : ''}><td class="o">${addr(at)}</td>${cells(a, b)}<td class="o">${addr(at)}</td>${cells(b, a)}</tr>`);
       }
     } else {
-      const what = r.kind === 'fold' ? '相同' : '无数据';
-      rows.push(`<tr class="f"><td colspan="6">··· ${addr(r.from)} – ${addr(r.to - 1)}：${(r.to - r.from).toLocaleString('en-US')} 字节${what} ···</td></tr>`);
+      const n = (r.to - r.from).toLocaleString('en-US');
+      const what = r.kind === 'fold'
+        ? l10n.t('{0} – {1}: {2} bytes identical', addr(r.from), addr(r.to - 1), n)
+        : l10n.t('{0} – {1}: {2} bytes without data', addr(r.from), addr(r.to - 1), n);
+      rows.push(`<tr class="f"><td colspan="6">··· ${what} ···</td></tr>`);
     }
   }
   const info = (s: ReportSide) =>
-    `<tr><th>${esc(s.name)}</th><td>${esc(s.path)}</td><td>${FORMAT_INFO[s.image.format].label}</td><td>${imageSize(s.image).toLocaleString('en-US')} 字节</td><td>${s.image.segments.length} 段</td></tr>`;
+    `<tr><th>${esc(s.name)}</th><td>${esc(s.path)}</td><td>${FORMAT_INFO[s.image.format].label}</td><td>${l10n.t('{0} bytes', imageSize(s.image).toLocaleString('en-US'))}</td><td>${l10n.t('{0} segments', s.image.segments.length)}</td></tr>`;
   return `<!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><title>Hex++ 对比报告 - ${esc(left.name)} ↔ ${esc(right.name)}</title>
+<html lang="${esc(lang)}"><head><meta charset="UTF-8"><title>${l10n.t('Hex++ Compare Report')} - ${esc(left.name)} ↔ ${esc(right.name)}</title>
 <style>
 body{font-family:system-ui,sans-serif;margin:20px;color:#222}
 h1{font-size:18px}
@@ -71,15 +75,15 @@ table{border-collapse:collapse}
 .f td{color:#888;font-style:italic;background:#f6f6f6;padding:4px 8px}
 .t{border-right:1px solid #ccc}
 </style></head><body>
-<h1>Hex++ 对比报告</h1>
+<h1>${l10n.t('Hex++ Compare Report')}</h1>
 <table class="sum">
-<tr><th>文件</th><th>路径</th><th>格式</th><th>数据大小</th><th>段数</th></tr>
+<tr><th>${l10n.t('File')}</th><th>${l10n.t('Path')}</th><th>${l10n.t('Format')}</th><th>${l10n.t('Data size')}</th><th>${l10n.t('Segment count')}</th></tr>
 ${info(left)}
 ${info(right)}
 </table>
-<p>差异字节：<b>${diff.diffBytes.toLocaleString('en-US')}</b>　差异块：<b>${diff.blocks.length}</b>　生成时间：${now.toLocaleString('zh-CN')}</p>
-${diff.blocks.length === 0 ? '<p><b>两个文件内容完全相同。</b></p>' : `<table class="cmp">
-<tr><th>偏移</th><th>${esc(left.name)}</th><th></th><th>偏移</th><th>${esc(right.name)}</th><th></th></tr>
+<p>${l10n.t('Different bytes:')} <b>${diff.diffBytes.toLocaleString('en-US')}</b>　${l10n.t('Difference blocks:')} <b>${diff.blocks.length}</b>　${l10n.t('Generated at:')} ${now.toLocaleString()}</p>
+${diff.blocks.length === 0 ? `<p><b>${l10n.t('The two files are identical.')}</b></p>` : `<table class="cmp">
+<tr><th>${l10n.t('Offset')}</th><th>${esc(left.name)}</th><th></th><th>${l10n.t('Offset')}</th><th>${esc(right.name)}</th><th></th></tr>
 ${rows.join('\n')}
 </table>`}
 </body></html>

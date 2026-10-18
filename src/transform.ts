@@ -1,4 +1,5 @@
 // 映像加工：合并、偏移、裁剪、删除范围、填充、对齐、拆分，以及把这些步骤串成流水线（类似 srec_cat）。
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, Segment, cloneImage, hex, imageRange, imageSize, normalize, readPieces, writeBytes } from './formats';
 import { FieldError, need, parseAddress, parseByte, parseDelta, parseRange, parseValue } from './numbers';
 import { PatchOptions, PatchSpec, planPatches } from './patch';
@@ -15,7 +16,7 @@ const fmt = (a: number) => '0x' + hex(a, 8);
 
 function filled(start: number, end: number, byte: number): Segment {
   if (end - start > MAX_FILL) {
-    throw new Error(`填充范围 ${(end - start).toLocaleString('en-US')} 字节过大`);
+    throw new Error(l10n.t('Fill range of {0} bytes is too large', (end - start).toLocaleString('en-US')));
   }
   return { address: start, data: new Uint8Array(end - start).fill(byte) };
 }
@@ -23,7 +24,7 @@ function filled(start: number, end: number, byte: number): Segment {
 export function offsetImage(img: MemoryImage, delta: number): MemoryImage {
   const r = imageRange(img);
   if (r && (r.start + delta < 0 || r.end + delta > MAX_ADDR)) {
-    throw new Error(`偏移后地址超出 32 位范围（${fmt(r.start)} ${delta < 0 ? '-' : '+'} ${fmt(Math.abs(delta))}）`);
+    throw new Error(l10n.t('Address out of 32-bit range after offset ({0} {1} {2})', fmt(r.start), delta < 0 ? '-' : '+', fmt(Math.abs(delta))));
   }
   return {
     ...img,
@@ -86,7 +87,7 @@ export function mergeImages(images: MemoryImage[], policy: OverlapPolicy): Memor
   const overlaps = findOverlaps(images, 5);
   if (policy === 'error' && overlaps.length) {
     const o = overlaps[0];
-    throw new Error(`输入 ${o.a + 1} 与输入 ${o.b + 1} 在 ${fmt(o.start)}–${fmt(o.end - 1)} 地址重叠`);
+    throw new Error(l10n.t('Input {0} and input {1} overlap at {2}–{3}', o.a + 1, o.b + 1, fmt(o.start), fmt(o.end - 1)));
   }
   const order = policy === 'keep' ? [...images].reverse() : images;
   const first = images.find(i => i.entry !== undefined);
@@ -114,7 +115,7 @@ export function splitImage(img: MemoryImage, mode: SplitMode): { address: number
     cuts = [];
     const n = Math.ceil(r.end / mode.size) - Math.floor(r.start / mode.size);
     if (n > 4096) {
-      throw new Error(`将拆分出 ${n} 个文件，过多`);
+      throw new Error(l10n.t('Splitting would produce {0} files, which is too many', n));
     }
     for (let a = Math.floor(r.start / mode.size) * mode.size; a < r.end; a += mode.size) {
       cuts.push(a);
@@ -144,14 +145,15 @@ export interface StepSpec {
   open?: boolean;
 }
 
+// label 用 getter 延迟翻译（模块加载时 l10n 尚未配置）
 export const STEP_OPS: { op: StepOp; label: string }[] = [
-  { op: 'offset', label: '地址偏移' },
-  { op: 'moveTo', label: '移动到地址' },
-  { op: 'crop', label: '裁剪（保留范围）' },
-  { op: 'remove', label: '删除范围' },
-  { op: 'fill', label: '填充' },
-  { op: 'align', label: '段对齐' },
-  { op: 'patch', label: '写入补丁' },
+  { op: 'offset', get label() { return l10n.t('Address offset'); } },
+  { op: 'moveTo', get label() { return l10n.t('Move to address'); } },
+  { op: 'crop', get label() { return l10n.t('Crop (keep range)'); } },
+  { op: 'remove', get label() { return l10n.t('Remove range'); } },
+  { op: 'fill', get label() { return l10n.t('Fill'); } },
+  { op: 'align', get label() { return l10n.t('Align segments'); } },
+  { op: 'patch', get label() { return l10n.t('Write patch'); } },
 ];
 
 export interface StepResult {
@@ -182,16 +184,18 @@ export interface PipelineResult {
 
 export function describe(img: MemoryImage): string {
   const r = imageRange(img);
-  return r ? `${img.segments.length} 段 · ${imageSize(img).toLocaleString('en-US')} 字节 · ${fmt(r.start)}–${fmt(r.end - 1)}` : '无数据';
+  return r
+    ? l10n.t('{0} segments · {1} bytes · {2}–{3}', img.segments.length, imageSize(img).toLocaleString('en-US'), fmt(r.start), fmt(r.end - 1))
+    : l10n.t('No data');
 }
 
 function runStep(img: MemoryImage, s: StepSpec, opts: PatchOptions): { image: MemoryImage; result: StepResult } {
-  const byteOf = () => need(parseByte(s.byte ?? 'FF'), 'byte', '填充字节无效');
+  const byteOf = () => need(parseByte(s.byte ?? 'FF'), 'byte', l10n.t('Invalid fill byte'));
   switch (s.op) {
     case 'offset':
-      return { image: offsetImage(img, need(parseDelta(s.value), 'value', '偏移量无效')), result: {} };
+      return { image: offsetImage(img, need(parseDelta(s.value), 'value', l10n.t('Invalid offset'))), result: {} };
     case 'moveTo': {
-      const to = need(parseAddress(s.value), 'value', '目标地址无效');
+      const to = need(parseAddress(s.value), 'value', l10n.t('Invalid target address'));
       const r = imageRange(img);
       return { image: r ? offsetImage(img, to - r.start) : img, result: {} };
     }
@@ -208,9 +212,9 @@ function runStep(img: MemoryImage, s: StepSpec, opts: PatchOptions): { image: Me
       return { image: fillRange(img, r.start, r.end, byteOf(), s.mode ?? 'holes'), result: {} };
     }
     case 'align': {
-      const a = need(parseValue(s.value), 'value', '对齐字节数无效');
+      const a = need(parseValue(s.value), 'value', l10n.t('Invalid alignment'));
       if (a < 2 || a > 0x10000000) {
-        throw new FieldError('value', '对齐字节数应在 2 到 0x10000000 之间');
+        throw new FieldError('value', l10n.t('Alignment must be between 2 and 0x10000000'));
       }
       return { image: alignImage(img, a, byteOf()), result: {} };
     }
@@ -232,7 +236,7 @@ export function runPipeline(inputs: PipelineInput[], policy: OverlapPolicy, step
   const shifted: MemoryImage[] = [];
   for (const inp of inputs) {
     try {
-      const d = (inp.offset ?? '').trim() ? need(parseDelta(inp.offset), 'offset', '偏移量无效') : 0;
+      const d = (inp.offset ?? '').trim() ? need(parseDelta(inp.offset), 'offset', l10n.t('Invalid offset')) : 0;
       const image = offsetImage(inp.image, d);
       shifted.push(image);
       res.inputs.push({ image });
@@ -241,11 +245,11 @@ export function runPipeline(inputs: PipelineInput[], policy: OverlapPolicy, step
     }
   }
   if (!inputs.length) {
-    res.error = '请添加输入文件';
+    res.error = l10n.t('Add an input file');
     return res;
   }
   if (res.inputs.some(i => i.error)) {
-    res.error = '输入文件的偏移量有误';
+    res.error = l10n.t('An input file has an invalid offset');
     return res;
   }
   res.overlaps = findOverlaps(shifted);

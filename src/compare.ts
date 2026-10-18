@@ -1,5 +1,6 @@
 // 对比面板：全部 / 差异、上一个 / 下一个、交换、重载、导出报告。
 import * as vscode from 'vscode';
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, parseImage } from './formats';
 import { DiffResult, diffImages } from './diff';
 import { layoutDiffOnly, layoutRanges } from './layout';
@@ -71,7 +72,7 @@ export class ComparePanel {
   private async load() {
     this.sides = await Promise.all(this.uris.map(async uri => {
       const [bytes, stat] = await Promise.all([vscode.workspace.fs.readFile(uri), vscode.workspace.fs.stat(uri)]);
-      const meta = `${new Date(stat.mtime).toLocaleString('zh-CN')}   ${stat.size.toLocaleString('en-US')} 字节`;
+      const meta = l10n.t('{0}   {1} bytes', new Date(stat.mtime).toLocaleString(vscode.env.language), stat.size.toLocaleString('en-US'));
       return { uri, image: parseImage(uri.path, bytes), meta };
     }));
     this.diff = diffImages(this.sides[0].image, this.sides[1].image);
@@ -115,9 +116,9 @@ export class ComparePanel {
   async reload() {
     try {
       await this.load();
-      this.panel.webview.postMessage({ type: 'flash', text: '已重新加载' });
+      this.panel.webview.postMessage({ type: 'flash', text: l10n.t('Reloaded') });
     } catch (e) {
-      vscode.window.showErrorMessage(`Hex++: 重新加载失败：${(e as Error).message}`);
+      vscode.window.showErrorMessage(l10n.t('Hex++: Reload failed: {0}', (e as Error).message));
     }
   }
 
@@ -130,16 +131,16 @@ export class ComparePanel {
     const target = await vscode.window.showSaveDialog({
       defaultUri: vscode.Uri.joinPath(a.uri, '..', `${name(a)}_vs_${name(b)}.html`),
       filters: { HTML: ['html'] },
-      title: '导出对比报告',
+      title: l10n.t('Export Compare Report'),
     });
     if (!target) {
       return;
     }
     const side = (s: Side) => ({ name: s.uri.path.split('/').pop()!, path: s.uri.fsPath, image: s.image });
-    const html = buildReport(side(a), side(b), this.diff);
+    const html = buildReport(side(a), side(b), this.diff, undefined, vscode.env.language);
     await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(html));
-    const open = '在浏览器中打开';
-    if (await vscode.window.showInformationMessage(`已导出对比报告：${target.fsPath}`, open) === open) {
+    const open = l10n.t('Open in Browser');
+    if (await vscode.window.showInformationMessage(l10n.t('Compare report exported: {0}', target.fsPath), open) === open) {
       await vscode.env.openExternal(target);
     }
   }

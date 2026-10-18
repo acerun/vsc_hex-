@@ -87,7 +87,7 @@ test('报告：包含摘要、差异字节高亮与折叠行', async () => {
   b.segments[0].data[0x10] = 0xab;
   b.segments[0].data[0x3f0] = 0xcd;
   const html = buildReport({ name: 'a.bin', path: '/a.bin', image: a }, { name: 'b.bin', path: '/b.bin', image: b }, diffImages(a, b));
-  assert.match(html, /差异字节：<b>2<\/b>/);
+  assert.match(html, /Different bytes: <b>2<\/b>/);
   assert.match(html, /<span class="d">AB<\/span>/);
-  assert.match(html, /字节相同/);
+  assert.match(html, /bytes identical/);
 });

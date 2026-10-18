@@ -1,5 +1,6 @@
 // 校验和 / CRC / 哈希：对内存映像的地址范围流式计算，空洞可按填充字节参与计算或跳过。
 import { createHash } from 'crypto';
+import * as l10n from '@vscode/l10n';
 import { MemoryImage, hex, readPieces } from './formats';
 
 export interface CrcModel {
@@ -11,7 +12,7 @@ export interface CrcModel {
   xorout: number;
 }
 
-export type AlgoGroup = 'CRC' | '校验和' | '哈希';
+export type AlgoGroup = 'CRC' | 'Checksum' | 'Hash';
 
 export interface AlgoInfo {
   id: string;
@@ -41,21 +42,32 @@ const CRC_PRESETS: Record<string, Preset> = {
   'crc32-mpeg2': { name: 'CRC-32/MPEG-2', width: 32, poly: 0x04c11db7, init: 0xffffffff, refin: false, refout: false, xorout: 0x00000000 },
   'crc32-stm32': {
     name: 'CRC-32/STM32', width: 32, poly: 0x04c11db7, init: 0xffffffff, refin: false, refout: false, xorout: 0x00000000, words: true,
-    note: 'STM32 硬件 CRC 默认配置，按小端 32 位字输入',
+    // 文案在读取时才翻译（模块加载时 l10n 尚未配置）
+    get note() { return l10n.t('STM32 hardware CRC default configuration, fed as little-endian 32-bit words'); },
   },
   'crc32c': { name: 'CRC-32C', width: 32, poly: 0x1edc6f41, init: 0xffffffff, refin: true, refout: true, xorout: 0xffffffff, note: 'Castagnoli' },
   'crc32-bzip2': { name: 'CRC-32/BZIP2', width: 32, poly: 0x04c11db7, init: 0xffffffff, refin: false, refout: false, xorout: 0xffffffff },
   'crc32-autosar': { name: 'CRC-32/AUTOSAR', width: 32, poly: 0xf4acfb13, init: 0xffffffff, refin: true, refout: true, xorout: 0xffffffff },
 };
 
+// 名称与说明用 getter 延迟翻译（模块加载时 l10n 尚未配置）
 const SUMS: Record<string, { name: string; size: number; note?: string }> = {
-  'sum8': { name: 'Sum8', size: 1, note: '字节和 mod 256' },
-  'sum8-neg': { name: 'Sum8 补码', size: 1, note: '使总和为 0 的字节（Intel HEX 风格）' },
-  'xor8': { name: 'XOR8', size: 1, note: '逐字节异或' },
-  'sum16': { name: 'Sum16', size: 2, note: '字节和 mod 2^16' },
-  'sum32': { name: 'Sum32', size: 4, note: '字节和 mod 2^32' },
-  'sum16w': { name: 'Sum16（16 位字）', size: 2, note: '16 位字之和，随字节序' },
-  'sum32w': { name: 'Sum32（32 位字）', size: 4, note: '32 位字之和，随字节序' },
+  'sum8': { name: 'Sum8', size: 1, get note() { return l10n.t('Byte sum mod 256'); } },
+  'sum8-neg': {
+    get name() { return l10n.t('Sum8 complement'); }, size: 1,
+    get note() { return l10n.t('Byte that makes the total 0 (Intel HEX style)'); },
+  },
+  'xor8': { name: 'XOR8', size: 1, get note() { return l10n.t('Byte-wise XOR'); } },
+  'sum16': { name: 'Sum16', size: 2, get note() { return l10n.t('Byte sum mod 2^16'); } },
+  'sum32': { name: 'Sum32', size: 4, get note() { return l10n.t('Byte sum mod 2^32'); } },
+  'sum16w': {
+    get name() { return l10n.t('Sum16 (16-bit words)'); }, size: 2,
+    get note() { return l10n.t('Sum of 16-bit words, follows byte order'); },
+  },
+  'sum32w': {
+    get name() { return l10n.t('Sum32 (32-bit words)'); }, size: 4,
+    get note() { return l10n.t('Sum of 32-bit words, follows byte order'); },
+  },
 };
 
 const HASHES: Record<string, { name: string; node: string; size: number }> = {
@@ -67,10 +79,16 @@ const HASHES: Record<string, { name: string; node: string; size: number }> = {
 export const CUSTOM_CRC = 'custom';
 
 export const ALGORITHMS: AlgoInfo[] = [
-  ...Object.entries(CRC_PRESETS).map(([id, p]) => ({ id, name: p.name, group: 'CRC' as const, size: p.width / 8, numeric: true, note: p.note })),
-  { id: CUSTOM_CRC, name: '自定义 CRC', group: 'CRC', size: 4, numeric: true },
-  ...Object.entries(SUMS).map(([id, s]) => ({ id, name: s.name, group: '校验和' as const, size: s.size, numeric: true, note: s.note })),
-  ...Object.entries(HASHES).map(([id, h]) => ({ id, name: h.name, group: '哈希' as const, size: h.size, numeric: false })),
+  ...Object.entries(CRC_PRESETS).map(([id, p]) => ({
+    id, group: 'CRC' as const, size: p.width / 8, numeric: true,
+    get name() { return p.name; }, get note() { return p.note; },
+  })),
+  { id: CUSTOM_CRC, get name() { return l10n.t('Custom CRC'); }, group: 'CRC', size: 4, numeric: true },
+  ...Object.entries(SUMS).map(([id, x]) => ({
+    id, group: 'Checksum' as const, size: x.size, numeric: true,
+    get name() { return x.name; }, get note() { return x.note; },
+  })),
+  ...Object.entries(HASHES).map(([id, h]) => ({ id, name: h.name, group: 'Hash' as const, size: h.size, numeric: false })),
 ];
 
 export function algoInfo(id: string, custom?: CrcModel): AlgoInfo | undefined {
@@ -80,16 +98,16 @@ export function algoInfo(id: string, custom?: CrcModel): AlgoInfo | undefined {
 
 export function validateCrcModel(m: CrcModel): string | undefined {
   if (!Number.isInteger(m.width) || m.width < 8 || m.width > 32) {
-    return '宽度需为 8–32';
+    return l10n.t('Width must be 8–32');
   }
   const max = 2 ** m.width;
   for (const k of ['poly', 'init', 'xorout'] as const) {
     if (!Number.isInteger(m[k]) || m[k] < 0 || m[k] >= max) {
-      return `${k} 超出 ${m.width} 位范围`;
+      return l10n.t('{0} is out of range for {1} bits', k, m.width);
     }
   }
   if ((m.poly & 1) === 0) {
-    return '多项式最低位应为 1';
+    return l10n.t('The lowest bit of the polynomial must be 1');
   }
   return undefined;
 }
@@ -233,7 +251,7 @@ export function createHasher(id: string, opts: { le?: boolean; custom?: CrcModel
     return crcHasher(p, p.words);
   }
   if (id === CUSTOM_CRC) {
-    const err = opts.custom ? validateCrcModel(opts.custom) : '未设置自定义 CRC 参数';
+    const err = opts.custom ? validateCrcModel(opts.custom) : l10n.t('Custom CRC parameters are not set');
     if (err) {
       throw new Error(err);
     }
@@ -247,7 +265,7 @@ export function createHasher(id: string, opts: { le?: boolean; custom?: CrcModel
     const hash = createHash(h.node);
     return { update: d => hash.update(d), digest: () => new Uint8Array(hash.digest()) };
   }
-  throw new Error(`未知算法 ${id}`);
+  throw new Error(l10n.t('Unknown algorithm {0}', id));
 }
 
 export function checksum(id: string, data: Uint8Array, opts: { le?: boolean; custom?: CrcModel } = {}): Uint8Array {
@@ -275,7 +293,7 @@ export const MAX_FILL_SPAN = 512 * 1024 * 1024;
 /** 对 [start, end) 计算多个算法；返回各结果与参与计算的字节数。 */
 export function checksumImage(img: MemoryImage, ids: string[], start: number, end: number, opts: ChecksumOptions = {}) {
   if (opts.fill !== undefined && end - start > MAX_FILL_SPAN) {
-    throw new Error(`范围 ${(end - start).toLocaleString('en-US')} 字节过大，无法填充空洞计算；请缩小范围或选择跳过空洞`);
+    throw new Error(l10n.t('Range of {0} bytes is too large to fill gaps; narrow the range or choose to skip gaps', (end - start).toLocaleString('en-US')));
   }
   const results: ChecksumResult[] = [];
   const hashers: Hasher[] = [];

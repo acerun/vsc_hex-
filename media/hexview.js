@@ -7,6 +7,8 @@
   const $ = (/** @type {string} */ id) => /** @type {HTMLElement} */ (document.getElementById(id));
   const ROW = 16;
   const MAX_SCROLL_PX = 8000000;
+  // @ts-ignore
+  const t = window.HexppTools.t;
   const HEX = Array.from({ length: 256 }, (_, i) => i.toString(16).toUpperCase().padStart(2, '0'));
 
   /** @type {any} */
@@ -178,18 +180,18 @@
     const vr = viewRows() + 1;
     const html = [];
     if (S.total === 0) {
-      html.push(`<div class="empty">${S.mode === 'compare' ? (S.filter === 'diff' ? '✔ 两个文件内容完全相同（无差异）。' : '两个文件均无数据。') : '文件为空。'}</div>`);
+      html.push(`<div class="empty">${S.mode === 'compare' ? (S.filter === 'diff' ? t('✔ The two files are identical (no differences).') : t('Both files have no data.')) : t('The file is empty.')}</div>`);
     }
     const sel = selRange();
     const blk = S.blocks && S.curBlock >= 0 ? S.blocks[S.curBlock] : null;
     for (let row = firstRow; row < Math.min(S.total, firstRow + vr); row++) {
       const info = rowInfo(row);
       if (info.kind === 'gap') {
-        html.push(`<div class="gap">··· 无数据 ${fmtAddr(info.from)} – ${fmtAddr(info.to - 1)}（${num(info.to - info.from)} 字节）···</div>`);
+        html.push(`<div class="gap">${t('··· No data {0} – {1} ({2} bytes) ···', fmtAddr(info.from), fmtAddr(info.to - 1), num(info.to - info.from))}</div>`);
         continue;
       }
       if (info.kind === 'fold') {
-        html.push(`<div class="fold" data-fold="${info.from}" title="点击展开（切换到“全部”并跳转）">⊞ 已折叠 ${fmtAddr(info.from)} – ${fmtAddr(info.to - 1)}：${num(info.to - info.from)} 字节相同</div>`);
+        html.push(`<div class="fold" data-fold="${info.from}" title="${t('Click to expand (switches to All and jumps there)')}">${t('⊞ Folded {0} – {1}: {2} identical bytes', fmtAddr(info.from), fmtAddr(info.to - 1), num(info.to - info.from))}</div>`);
         continue;
       }
       const addr = info.addr;
@@ -418,10 +420,10 @@
   /** 直接在网格中改写：hex 区按半字节输入（2/4 字节单元按显示的字节序），ASCII 区按字符输入 */
   function typeEdit(ch) {
     if (S.mode !== 'edit') return false;
-    if (S.readOnly) { flash('只读模式：按 Insert 切换为读写'); return true; }
+    if (S.readOnly) { flash(t('Read-only mode: press Insert to switch to Read/Write')); return true; }
     const u = S.unit, U = S.sel.cursor;
     if (S.ascii) {
-      if (u !== 1) { flash('请切换到 1 字节单元后在 ASCII 区输入'); return true; }
+      if (u !== 1) { flash(t('Switch to 1-byte units to type in the ASCII area')); return true; }
       const code = ch.charCodeAt(0);
       if (code > 0xff) return true;
       if (applyEdit(U, [code])) moveCols(1, false);
@@ -432,7 +434,7 @@
     const di = S.nib >> 1;
     const a = U + (S.le ? u - 1 - di : di);
     const old = bytesAt(0, a, 1)[0];
-    if (old < 0) { flash('该地址无数据，不能编辑'); return true; }
+    if (old < 0) { flash(t('No data at this address; cannot edit')); return true; }
     const nv = S.nib % 2 === 0 ? (d << 4) | (old & 0x0f) : (old & 0xf0) | d;
     applyEdit(a, [nv]);
     const nib = S.nib + 1;
@@ -502,7 +504,7 @@
   }
   function setLe(le) {
     S.le = le;
-    $('endian').textContent = le ? '小端 LE' : '大端 BE';
+    $('endian').textContent = le ? t('Little-endian (LE)') : t('Big-endian (BE)');
     render();
     updateInspector();
     postSel();
@@ -511,7 +513,7 @@
   function setReadOnly(ro) {
     S.readOnly = ro;
     const b = $('ro');
-    if (b) { b.textContent = ro ? '🔒 只读' : '✎ 读写'; b.classList.toggle('on', !ro); }
+    if (b) { b.textContent = ro ? t('🔒 Read-only') : t('✎ Read/Write'); b.classList.toggle('on', !ro); }
     updateStatus();
     postSel();
   }
@@ -554,10 +556,10 @@
     if (!text) { $('findInfo').textContent = ''; render(); return; }
     let matcher;
     if (mode === 'regex') {
-      try { matcher = new RegExp(text, cs ? 'g' : 'gi'); } catch (err) { $('findInfo').textContent = '正则无效'; return; }
+      try { matcher = new RegExp(text, cs ? 'g' : 'gi'); } catch (err) { $('findInfo').textContent = t('Invalid regex'); return; }
     } else {
       let pat = mode === 'hex' ? parseHexPattern(text) : Array.from(text, (c) => c.charCodeAt(0) & 0xff);
-      if (!pat) { $('findInfo').textContent = 'Hex 无效'; return; }
+      if (!pat) { $('findInfo').textContent = t('Invalid hex'); return; }
       if (mode === 'text' && !cs) pat = pat.map((c) => (c >= 0x41 && c <= 0x5a ? c + 32 : c));
       matcher = pat;
     }
@@ -579,7 +581,7 @@
           }
           if (ok) S.find.results.push({ addr: seg.address + i, len: n });
           if ((i & 0xffff) === 0 && performance.now() - last > 30) {
-            $('findInfo').textContent = `${num(S.find.results.length)} 个…`;
+            $('findInfo').textContent = t('{0} matches…', num(S.find.results.length));
             await new Promise((r) => setTimeout(r));
             last = performance.now();
             if (token !== findToken) return;
@@ -595,7 +597,7 @@
           S.find.results.push({ addr: seg.address + m.index, len: Math.max(1, m[0].length) });
           if (m[0].length === 0) matcher.lastIndex++;
           if (performance.now() - last > 30) {
-            $('findInfo').textContent = `${num(S.find.results.length)} 个…`;
+            $('findInfo').textContent = t('{0} matches…', num(S.find.results.length));
             await new Promise((r) => setTimeout(r));
             last = performance.now();
             if (token !== findToken) return;
@@ -604,7 +606,7 @@
       }
       if (S.find.results.length >= LIMIT) break;
     }
-    $('findInfo').textContent = S.find.results.length ? `${num(S.find.results.length)}${S.find.results.length >= LIMIT ? '+' : ''} 个` : '无结果';
+    $('findInfo').textContent = S.find.results.length ? t('{0} matches', num(S.find.results.length) + (S.find.results.length >= LIMIT ? '+' : '')) : t('No results');
     if (S.find.results.length) findStep(1, true);
     else render();
   }
@@ -639,7 +641,7 @@
     const buf = new DataView(new ArrayBuffer(8));
     for (let i = 0; i < avail; i++) buf.setUint8(i, b[i]);
     const le = S.le;
-    const rows = [['地址', `${fmtAddr(S.sel.cursor)} (${num(S.sel.cursor)})`]];
+    const rows = [[t('Address'), `${fmtAddr(S.sel.cursor)} (${num(S.sel.cursor)})`]];
     if (avail >= 1) {
       rows.push(['Binary', b[0].toString(2).padStart(8, '0')]);
       rows.push(['Int8', String(buf.getInt8(0))], ['Uint8', String(buf.getUint8(0))]);
@@ -653,15 +655,15 @@
       rows.push(['Int64', String(buf.getBigInt64(0, le))], ['Uint64', String(buf.getBigUint64(0, le))]);
       rows.push(['Double', String(buf.getFloat64(0, le))]);
     }
-    if (avail === 0) rows.push(['', '（无数据）']);
-    el.innerHTML = `<h4>数据检查器 · ${le ? '小端' : '大端'}</h4><table>${rows.map((r) => `<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join('')}</table>`;
+    if (avail === 0) rows.push(['', t('(no data)')]);
+    el.innerHTML = `<h4>${t('Data Inspector')} · ${le ? t('Little-endian') : t('Big-endian')}</h4><table>${rows.map((r) => `<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join('')}</table>`;
   }
 
   // ---------------- 侧面板：检查器 / 校验 / 补丁 ----------------
   // @ts-ignore
   const UI = window.HexppTools;
   const panelEl = $('panel');
-  const TAB_NAMES = { insp: '检查器', sum: '校验', patch: '补丁' };
+  const TAB_NAMES = { insp: t('Inspector'), sum: t('Checksum'), patch: t('Patch') };
   let tab = 'insp';
   /** 校验页状态；scope: sel 选区 / all 全部 / custom 自定义 */
   const T = { note: '', algos: [], selected: new Set(), custom: {}, canPatch: false, scope: 'sel', skip: false, fill: 'FF', start: '', end: '', req: 0, timer: 0, big: false };
@@ -691,7 +693,7 @@
   }
   function buildTabs() {
     $('tabs').innerHTML = tabsFor().map((t) => `<button data-tab="${t}">${TAB_NAMES[t]}</button>`).join('') +
-      '<span class="spacer"></span><button id="panelClose" title="关闭面板">✕</button>';
+      '<span class="spacer"></span><button id="panelClose" title="' + t('Close panel') + '">✕</button>';
     $('tabs').querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => showTab(/** @type {any} */ (b).dataset.tab, false)));
     $('panelClose').addEventListener('click', () => { panelEl.classList.add('hidden'); document.querySelectorAll('[data-tab]').forEach((b) => b.classList.remove('on')); saveUi(); });
   }
@@ -736,19 +738,19 @@
       const r = selRange();
       if (r.end - r.start > S.unit) return { start: hexStr(r.start), end: hexStr(r.end - 1), note: '' };
       const a = all();
-      return a && { ...a, note: '无选区，按全部计算' };
+      return a && { ...a, note: t('No selection; using all') };
     }
     return all();
   }
   function buildSumPane() {
     const el = $('sumPane');
     el.innerHTML = `<div class="tsec">
-        <div class="frow"><label>范围</label><div class="fctl"><span class="seg sm" id="sumScope"><button data-v="sel">选区</button><button data-v="all">全部</button><button data-v="custom">自定义</button></span></div></div>
-        <div class="frow"><label></label><div class="fctl"><span class="pair"><input id="sumStart" class="mono" placeholder="起始" spellcheck="false"><span class="dash">–</span><input id="sumEnd" class="mono" placeholder="结束(含) 或 +长度" spellcheck="false"></span></div></div>
-        <div class="frow"><label>空洞</label><div class="fctl"><span class="seg sm" id="sumHoles"><button data-v="fill">填充</button><button data-v="skip">跳过</button></span><input id="sumFill" class="mono byte" spellcheck="false" title="填充字节（十六进制）"></div></div>
+        <div class="frow"><label>${t('Range')}</label><div class="fctl"><span class="seg sm" id="sumScope"><button data-v="sel">${t('Selection')}</button><button data-v="all">${t('All')}</button><button data-v="custom">${t('Custom')}</button></span></div></div>
+        <div class="frow"><label></label><div class="fctl"><span class="pair"><input id="sumStart" class="mono" placeholder="${t('Start')}" spellcheck="false"><span class="dash">–</span><input id="sumEnd" class="mono" placeholder="${t('End (incl.) or +length')}" spellcheck="false"></span></div></div>
+        <div class="frow"><label>${t('Gaps')}</label><div class="fctl"><span class="seg sm" id="sumHoles"><button data-v="fill">${t('Fill')}</button><button data-v="skip">${t('Skip')}</button></span><input id="sumFill" class="mono byte" spellcheck="false" title="${t('Fill byte (hex)')}"></div></div>
       </div>
       <div class="tsec grow">
-        <div class="thead"><span>结果</span><span class="spacer"></span><button id="sumAlgoBtn" class="sm" title="选择要计算的算法">算法 ▾</button></div>
+        <div class="thead"><span>${t('Results')}</span><span class="spacer"></span><button id="sumAlgoBtn" class="sm" title="${t('Choose the algorithms to compute')}">${t('Algorithm ▾')}</button></div>
         <div id="sumAlgos" class="algos hidden"></div>
         <div id="sumList" class="results"></div>
         <div id="sumInfo" class="tinfo"></div>
@@ -786,6 +788,10 @@
     });
     syncSumForm();
   }
+  /** 算法分组 id（扩展侧为英文）→ 显示名 */
+  function groupLabel(g) {
+    return g === 'Checksum' ? t('Checksums') : g === 'Hash' ? t('Hash') : g;
+  }
   function buildAlgoChooser() {
     const groups = [];
     for (const a of T.algos) {
@@ -795,10 +801,10 @@
     }
     const c = T.custom;
     const cin = (k, ph) => `<label><span>${ph}</span><input data-c="${k}" class="mono" value="${UI.esc(c[k])}" spellcheck="false"></label>`;
-    $('sumAlgos').innerHTML = groups.map((g) => `<div class="agroup"><div class="aglabel">${g.name}</div>${g.list.map((a) =>
+    $('sumAlgos').innerHTML = groups.map((g) => `<div class="agroup"><div class="aglabel">${groupLabel(g.name)}</div>${g.list.map((a) =>
       `<label class="chk" title="${UI.esc(a.note || '')}"><input type="checkbox" data-algo="${a.id}"${T.selected.has(a.id) ? ' checked' : ''}><span>${UI.esc(a.name)}</span>${a.note ? `<span class="muted">${UI.esc(a.note)}</span>` : ''}</label>`).join('')}</div>`).join('') +
-      `<div class="crcp${T.selected.has('custom') ? '' : ' hidden'}" id="crcParams">${cin('width', '宽度')}${cin('poly', '多项式')}${cin('init', '初值')}${cin('xorout', '结果异或')}
-        <label class="chk"><input type="checkbox" data-c="refin"${c.refin ? ' checked' : ''}><span>输入反转</span></label><label class="chk"><input type="checkbox" data-c="refout"${c.refout ? ' checked' : ''}><span>输出反转</span></label></div>`;
+      `<div class="crcp${T.selected.has('custom') ? '' : ' hidden'}" id="crcParams">${cin('width', t('Width'))}${cin('poly', t('Polynomial'))}${cin('init', t('Init'))}${cin('xorout', t('XOR out'))}
+        <label class="chk"><input type="checkbox" data-c="refin"${c.refin ? ' checked' : ''}><span>${t('Reflect input')}</span></label><label class="chk"><input type="checkbox" data-c="refout"${c.refout ? ' checked' : ''}><span>${t('Reflect output')}</span></label></div>`;
     const el = $('sumAlgos');
     const changed = () => { post({ type: 'toolsState', selected: [...T.selected], custom: T.custom }); requestSum(true); };
     el.addEventListener('change', (e) => {
@@ -833,18 +839,18 @@
     clearTimeout(T.timer);
     T.timer = setTimeout(() => {
       const r = sumRange();
-      if (!r) { $('sumList').innerHTML = '<div class="cempty">没有数据</div>'; $('sumInfo').textContent = ''; return; }
+      if (!r) { $('sumList').innerHTML = `<div class="cempty">${t('No data available')}</div>`; $('sumInfo').textContent = ''; return; }
       if (T.scope !== 'custom') {
         /** @type {HTMLInputElement} */ ($('sumStart')).value = r.start;
         /** @type {HTMLInputElement} */ ($('sumEnd')).value = r.end;
       }
       const ids = T.algos.map((a) => a.id).filter((id) => T.selected.has(id));
-      if (!ids.length) { $('sumList').innerHTML = '<div class="cempty">点击「算法 ▾」选择要计算的算法</div>'; $('sumInfo').textContent = ''; return; }
+      if (!ids.length) { $('sumList').innerHTML = `<div class="cempty">${t('Click Algorithm ▾ to choose the algorithms to compute')}</div>`; $('sumInfo').textContent = ''; return; }
       // 空洞填充且范围很大时（如 Flash 与 RAM 段相距很远）需要确认后再算
       const span = parseInt(r.end.replace(/_/g, ''), 16) - parseInt(r.start.replace(/_/g, ''), 16) + 1;
       if (!big && !T.skip && span > 64 * 1024 * 1024 && T.scope !== 'custom') {
-        $('sumList').innerHTML = `<div class="res big" data-id=""><div class="rname">范围约 ${num(Math.round(span / 1048576))} MB（含大段空洞）</div><div class="rval"></div><div class="ract show"><button data-big>仍然计算</button></div></div>`;
-        $('sumInfo').textContent = '可改为「跳过」空洞，或用自定义范围';
+        $('sumList').innerHTML = `<div class="res big" data-id=""><div class="rname">${t('Range is about {0} MB (includes a large gap)', num(Math.round(span / 1048576)))}</div><div class="rval"></div><div class="ract show"><button data-big>${t('Compute anyway')}</button></div></div>`;
+        $('sumInfo').textContent = t('Switch gaps to Skip, or use a custom range');
         return;
       }
       T.req++;
@@ -867,13 +873,13 @@
     const canWrite = T.canPatch && S.mode === 'edit';
     $('sumList').innerHTML = m.results.map((r) => `<div class="res${r.error ? ' bad' : ''}" data-id="${r.id}">
         <div class="rname">${UI.esc(r.name)}</div>
-        <div class="rval mono" title="${r.error ? '' : '点击复制'}">${UI.esc(r.error || r.text)}</div>
-        <div class="ract">${r.error ? '' : `<button data-copy title="复制">复制</button>${canWrite ? '<button data-write title="以此算法和范围新建写入补丁">写入…</button>' : ''}`}</div>
+        <div class="rval mono" title="${r.error ? '' : t('Click to copy')}">${UI.esc(r.error || r.text)}</div>
+        <div class="ract">${r.error ? '' : `<button data-copy title="${t('Copy')}">${t('Copy')}</button>${canWrite ? `<button data-write title="${t('Create a Write Patch with this algorithm and range')}">${t('Write…')}</button>` : ''}`}</div>
       </div>`).join('');
-    const side = S.mode === 'compare' ? (S.sel.side === 0 ? '左侧 · ' : '右侧 · ') : '';
+    const side = S.mode === 'compare' ? (S.sel.side === 0 ? t('Left') : t('Right')) + ' · ' : '';
     const holes = m.end - m.start - m.count;
-    info.textContent = `${side}${fmtAddr(m.start)} – ${fmtAddr(m.end - 1)} · ${num(m.count)} 字节` +
-      (holes > 0 ? `（跳过空洞 ${num(holes)}）` : '') + ` · ${m.ms} ms` + (T.note ? ` · ${T.note}` : '');
+    info.textContent = `${side}${fmtAddr(m.start)} – ${fmtAddr(m.end - 1)} · ${t('{0} bytes', num(m.count))}` +
+      (holes > 0 ? ' ' + t('(gaps skipped: {0})', num(holes)) : '') + ` · ${m.ms} ms` + (T.note ? ` · ${T.note}` : '');
   }
   function addChecksumPatch(algo) {
     const r = sumRange();
@@ -881,24 +887,24 @@
     const after = parseInt(r.end.replace(/_/g, ''), 16) + 1;
     showTab('patch', false);
     patchList.add(Object.assign(UI.patchDefaults('checksum', { algo, start: r.start, end: r.end, address: hexStr(after), fill: T.fill }), { holes: T.skip ? 'skip' : 'fill' }));
-    flash('已添加补丁：写入地址默认为范围之后，请按需修改');
+    flash(t('Patch added: the write address defaults to just after the range; adjust as needed'));
   }
 
   // ---------- 补丁 ----------
   function buildPatchPane() {
     const el = $('patchPane');
     if (!T.canPatch) {
-      el.innerHTML = `<div class="cempty">${S.mode === 'view' ? '只读查看器不能写入。<br>用「Hex++ Editor」打开文件后再应用补丁，<br>或在「加工…」中添加「写入补丁」步骤生成新文件。' : '当前视图不支持补丁。'}</div>`;
+      el.innerHTML = `<div class="cempty">${S.mode === 'view' ? t('The read-only viewer cannot write.<br>Open the file with "Hex++ Editor" to apply patches,<br>or add a "Write Patch" step in "Process…" to generate a new file.') : t('Patches are not supported in this view.')}</div>`;
       return;
     }
-    el.innerHTML = `<div class="thead"><button id="patchAdd" class="sm accent" title="添加补丁">＋ 添加</button><span class="spacer"></span>
-        <button id="patchImport" class="sm" title="从 JSON 导入补丁方案">导入</button><button id="patchExport" class="sm" title="导出为 JSON，便于团队共享或批量处理">导出</button></div>
+    el.innerHTML = `<div class="thead"><button id="patchAdd" class="sm accent" title="${t('Add patch')}">${t('+ Add')}</button><span class="spacer"></span>
+        <button id="patchImport" class="sm" title="${t('Import a patch recipe from JSON')}">${t('Import')}</button><button id="patchExport" class="sm" title="${t('Export as JSON for team sharing or batch processing')}">${t('Export')}</button></div>
       <div id="patchList"></div>
-      <div class="tfoot"><button id="patchApply" class="primary" title="按顺序写入全部启用的补丁 (Ctrl+Enter)">应用补丁</button><span class="muted">按顺序写入，可一次撤销</span></div>`;
+      <div class="tfoot"><button id="patchApply" class="primary" title="${t('Write all enabled patches in order (Ctrl+Enter)')}">${t('Apply patches')}</button><span class="muted">${t('Written in order; can be undone in one step')}</span></div>`;
     patchList = UI.cardList($('patchList'), {
       title: (p) => UI.patchTitle(p, T.algos),
       fields: (p) => UI.patchFields(p, '', T.algos),
-      empty: '还没有补丁。<br>点击「＋ 添加」，或在「校验」页点结果旁的「写入…」。<br><span class="muted">补丁方案按文件自动保存。</span>',
+      empty: t('No patches yet.<br>Click "+ Add", or click "Write…" next to a result on the Checksum tab.<br><span class="muted">Patch recipes are saved per file automatically.</span>'),
       onChange: (list) => { clearTimeout(patchTimer); patchTimer = setTimeout(() => post({ type: 'patchSave', patches: list }), 200); },
     });
     $('patchAdd').addEventListener('click', () => UI.menu($('patchAdd'), UI.PATCH_KINDS.map(([k, l]) => [k, l, PATCH_HINT[k]]), (kind) => {
@@ -914,7 +920,7 @@
     $('patchApply').addEventListener('click', applyPatches);
     el.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); applyPatches(); } });
   }
-  const PATCH_HINT = { checksum: 'CRC / 校验和 / 哈希', number: 'u8 / u16 / u32 常量', serial: '应用后自动递增', time: 'Unix / BCD / 文本', text: '版本字符串等', bytes: '任意十六进制字节' };
+  const PATCH_HINT = { checksum: t('CRC / checksum / hash'), number: t('u8 / u16 / u32 constants'), serial: t('Auto-increments after applying'), time: t('Unix / BCD / text'), text: t('Version string, etc.'), bytes: t('Arbitrary hex bytes') };
   function applyPatches() {
     clearTimeout(patchTimer);
     post({ type: 'patchApply', ro: S.readOnly, patches: patchList.get() });
@@ -932,13 +938,13 @@
     if (!S) return;
     const r = selRange();
     const side = S.sides[S.sel.side];
-    const parts = [`偏移 ${fmtAddr(S.sel.cursor)} (${num(S.sel.cursor)})`];
-    if (r.end - r.start > S.unit) parts.push(`选中 ${num(r.end - r.start)} 字节 [${fmtAddr(r.start)} – ${fmtAddr(r.end - 1)}]`);
+    const parts = [t('Offset {0} ({1})', fmtAddr(S.sel.cursor), num(S.sel.cursor))];
+    if (r.end - r.start > S.unit) parts.push(t('Selected {0} bytes [{1} – {2}]', num(r.end - r.start), fmtAddr(r.start), fmtAddr(r.end - 1)));
     parts.push(side.info);
-    if (S.mode === 'edit') parts.push(`<span class="ro">${S.readOnly ? '只读' : '读写'}</span>`);
-    if (S.mode === 'view') parts.push('只读视图');
+    if (S.mode === 'edit') parts.push(`<span class="ro">${S.readOnly ? t('Read-only') : t('Read/Write')}</span>`);
+    if (S.mode === 'view') parts.push(t('Read-only view'));
     const warns = S.sides.reduce((n, s) => n + s.warnings.length, 0);
-    if (warns) parts.push(`<span class="warn" id="warnLink" title="点击查看">⚠ ${warns} 个解析警告</span>`);
+    if (warns) parts.push(`<span class="warn" id="warnLink" title="${t('Click to view')}">${t('⚠ {0} parse warnings', warns)}</span>`);
     parts.push('<span id="flash"></span>');
     $('status').innerHTML = parts.map((p) => `<span>${p}</span>`).join('');
     const w = document.getElementById('warnLink');
@@ -959,7 +965,7 @@
   }
   function gotoBlock(dir) {
     const bl = S.blocks;
-    if (!bl.length) { flash('没有差异'); return; }
+    if (!bl.length) { flash(t('There are no differences')); return; }
     let i;
     if (S.curBlock < 0) {
       const c = S.sel.cursor;
@@ -967,7 +973,7 @@
       if (i < 0 || i >= bl.length) i = dir > 0 ? 0 : bl.length - 1;
     } else {
       i = S.curBlock + dir;
-      if (i < 0 || i >= bl.length) { flash(dir > 0 ? '已是最后一个差异' : '已是第一个差异'); return; }
+      if (i < 0 || i >= bl.length) { flash(dir > 0 ? t('Already at the last difference') : t('Already at the first difference')); return; }
     }
     S.curBlock = i;
     const b = bl[i];
@@ -983,32 +989,32 @@
     const el = document.getElementById('diffInfo');
     if (!el) return;
     const n = S.blocks.length;
-    el.textContent = n === 0 ? '无差异' : `差异 ${S.curBlock >= 0 ? S.curBlock + 1 : '-'}/${num(n)} · ${num(S.diffBytes)} 字节`;
+    el.textContent = n === 0 ? t('No differences') : t('Difference {0}/{1} · {2} bytes', S.curBlock >= 0 ? S.curBlock + 1 : '-', num(n), num(S.diffBytes));
     /** @type {HTMLButtonElement} */ ($('prev')).disabled = n === 0;
     /** @type {HTMLButtonElement} */ ($('next')).disabled = n === 0;
   }
 
   // ---------------- 工具栏 ----------------
   function buildToolbar(mode) {
-    const unitSeg = `<span class="seg" title="显示单元 (Ctrl+1/2/4)"><button data-unit="1">1</button><button data-unit="2">2</button><button data-unit="4">4</button></span>`;
-    const common = `<label>Go To</label><input id="goto" placeholder="地址 (hex)" title="十六进制地址：0800_1000 / 0x1000；#4096 为十进制；+10/-10 为相对偏移 (Ctrl+G)">
-      <span class="sep"></span>${unitSeg}<button id="endian" title="2/4 字节单元与检查器的字节序"></button>`;
-    const find = `<span class="sep"></span><select id="findMode" title="查找方式"><option value="hex">Hex</option><option value="text">文本</option><option value="regex">正则</option></select>
-      <input id="findText" placeholder="查找 (Ctrl+F)" title="Hex 模式：DE AD * EF，* 或 ?? 匹配任意字节"><button id="findCase" title="区分大小写">Aa</button>
-      <button id="findPrev" title="上一个 (Shift+Enter)">▲</button><button id="findNext" title="下一个 (Enter)">▼</button><span id="findInfo"></span>`;
+    const unitSeg = `<span class="seg" title="${t('Display unit (Ctrl+1/2/4)')}"><button data-unit="1">1</button><button data-unit="2">2</button><button data-unit="4">4</button></span>`;
+    const common = `<label>Go To</label><input id="goto" placeholder="${t('Address (hex)')}" title="${t('Hex address: 0800_1000 / 0x1000; #4096 for decimal; +10/-10 for relative offset (Ctrl+G)')}">
+      <span class="sep"></span>${unitSeg}<button id="endian" title="${t('Byte order for 2/4-byte units and the inspector')}"></button>`;
+    const find = `<span class="sep"></span><select id="findMode" title="${t('Find mode')}"><option value="hex">Hex</option><option value="text">${t('Text')}</option><option value="regex">${t('Regex')}</option></select>
+      <input id="findText" placeholder="${t('Find (Ctrl+F)')}" title="${t('Hex mode: DE AD * EF; * or ?? matches any byte')}"><button id="findCase" title="${t('Match case')}">Aa</button>
+      <button id="findPrev" title="${t('Previous (Shift+Enter)')}">▲</button><button id="findNext" title="${t('Next (Enter)')}">▼</button><span id="findInfo"></span>`;
     let h;
     if (mode === 'compare') {
-      h = `<span class="seg"><button data-filter="all" title="显示全部数据">✱ 全部</button><button data-filter="diff" title="只显示差异（相同区域折叠）">≠ 差异</button></span>
-        <span class="sep"></span><button id="next" title="下一个差异 (F8)">⬇ 下一个</button><button id="prev" title="上一个差异 (Shift+F8)">⬆ 上一个</button><span id="diffInfo"></span>
-        <span class="sep"></span><button id="swap" title="交换左右">⇄ 交换</button><button id="reload" title="从磁盘重新加载 (F5)">⟳ 重载</button>
+      h = `<span class="seg"><button data-filter="all" title="${t('Show all data')}">${t('✱ All')}</button><button data-filter="diff" title="${t('Show only differences (identical regions folded)')}">${t('≠ Differences')}</button></span>
+        <span class="sep"></span><button id="next" title="${t('Next difference (F8)')}">${t('⬇ Next')}</button><button id="prev" title="${t('Previous difference (Shift+F8)')}">${t('⬆ Previous')}</button><span id="diffInfo"></span>
+        <span class="sep"></span><button id="swap" title="${t('Swap left and right')}">${t('⇄ Swap')}</button><button id="reload" title="${t('Reload from disk (F5)')}">${t('⟳ Reload')}</button>
         <span class="sep"></span>${common}${find}<span class="spacer"></span>
-        <span class="seg"><button data-tab="insp" title="数据检查器">检查器</button><button data-tab="sum" title="CRC / 校验和 / 哈希（当前一侧）">校验</button></span>
-        <button id="report" title="导出 HTML 对比报告">导出报告</button>`;
+        <span class="seg"><button data-tab="insp" title="${t('Data Inspector')}">${t('Inspector')}</button><button data-tab="sum" title="${t('CRC / checksum / hash (current side)')}">${t('Checksum')}</button></span>
+        <button id="report" title="${t('Export HTML comparison report')}">${t('Export report')}</button>`;
     } else {
-      h = `${common}${mode === 'edit' ? '<button id="ro" title="切换只读/读写 (Insert)"></button>' : ''}${find}
+      h = `${common}${mode === 'edit' ? `<button id="ro" title="${t('Toggle Read-only / Read/Write (Insert)')}"></button>` : ''}${find}
         <span class="spacer"></span>
-        <span class="seg"><button data-tab="insp" title="数据检查器">检查器</button><button data-tab="sum" title="CRC / 校验和 / 哈希">校验</button><button data-tab="patch" title="写入校验值、版本号、时间戳、序列号">补丁</button></span>
-        <button id="procBtn" title="合并 / 偏移 / 裁剪 / 填充 / 拆分，生成新文件">加工…</button><button id="saveAs" title="另存为其他格式">另存为…</button><button id="cmpBtn" title="与另一个文件比较">比较…</button>`;
+        <span class="seg"><button data-tab="insp" title="${t('Data Inspector')}">${t('Inspector')}</button><button data-tab="sum" title="${t('CRC / checksum / hash')}">${t('Checksum')}</button><button data-tab="patch" title="${t('Write checksums, version numbers, timestamps, serial numbers')}">${t('Patch')}</button></span>
+        <button id="procBtn" title="${t('Merge / offset / crop / fill / split to produce a new file')}">${t('Process…')}</button><button id="saveAs" title="${t('Save as another format')}">${t('Save As…')}</button><button id="cmpBtn" title="${t('Compare with another file')}">${t('Compare…')}</button>`;
     }
     $('toolbar').innerHTML = h;
     const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
@@ -1027,7 +1033,7 @@
     gotoInput().addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         const a = parseAddr(gotoInput().value);
-        if (isNaN(a) || a < 0) { flash('地址格式无效：如 0800_1000、0x1000、#4096、+100'); return; }
+        if (isNaN(a) || a < 0) { flash(t('Invalid address format, e.g. 0800_1000, 0x1000, #4096, +100')); return; }
         goToAddr(a);
         scroller.focus();
       } else if (e.key === 'Escape') scroller.focus();
@@ -1060,7 +1066,7 @@
       case 'goto': gotoInput().focus(); gotoInput().select(); break;
       case 'find': { const f = /** @type {HTMLInputElement} */ ($('findText')); f.focus(); f.select(); break; }
       case 'selectRange': selectRange(m.start, m.end); break;
-      case 'toggleReadOnly': if (S.mode === 'edit') { setReadOnly(!S.readOnly); flash(S.readOnly ? '已切换为只读' : '已切换为读写'); } break;
+      case 'toggleReadOnly': if (S.mode === 'edit') { setReadOnly(!S.readOnly); flash(S.readOnly ? t('Switched to Read-only') : t('Switched to Read/Write')); } break;
       case 'toggleInspector': toggleInspector(); break;
       case 'next': gotoBlock(1); break;
       case 'prev': gotoBlock(-1); break;
