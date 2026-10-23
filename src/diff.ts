@@ -34,16 +34,20 @@ export function mergeRanges(ranges: Range[], gap: number): Range[] {
   return out;
 }
 
-/** 顺序游标：按升序地址查询某一侧的字节，-1 表示空洞。 */
+/** 顺序游标：按升序地址定位某一侧的段。 */
 class Cursor {
   private i = 0;
   constructor(private segs: Segment[]) {}
-  at(addr: number): number {
+  /** addr 所在的段（空洞为 undefined），以及该状态持续到的地址 */
+  at(addr: number): { seg?: Segment; until: number } {
     while (this.i < this.segs.length && addr >= this.segs[this.i].address + this.segs[this.i].data.length) {
       this.i++;
     }
     const s = this.segs[this.i];
-    return s && addr >= s.address ? s.data[addr - s.address] : -1;
+    if (!s) {
+      return { until: Infinity };
+    }
+    return addr >= s.address ? { seg: s, until: s.address + s.data.length } : { until: s.address };
   }
 }
 
@@ -55,9 +59,26 @@ export function diffImages(a: MemoryImage, b: MemoryImage, mergeGap = 16): DiffR
   let diffBytes = 0;
   for (const r of union) {
     let runStart = -1;
-    for (let addr = r.start; addr < r.end; addr++) {
-      if (ca.at(addr) !== cb.at(addr)) {
-        diffBytes++;
+    // 按两侧段边界切片，片内两侧的"有数据/空洞"状态不变，可用紧凑循环比较
+    for (let addr = r.start; addr < r.end;) {
+      const pa = ca.at(addr), pb = cb.at(addr);
+      const end = Math.min(r.end, pa.until, pb.until);
+      if (pa.seg && pb.seg) {
+        const da = pa.seg.data, db = pb.seg.data, oa = pa.seg.address, ob = pb.seg.address;
+        for (let x = addr; x < end; x++) {
+          if (da[x - oa] !== db[x - ob]) {
+            diffBytes++;
+            if (runStart < 0) {
+              runStart = x;
+            }
+          } else if (runStart >= 0) {
+            raw.push({ start: runStart, end: x });
+            runStart = -1;
+          }
+        }
+      } else if (pa.seg || pb.seg) {
+        // 一侧有数据、另一侧是空洞：整片都算差异
+        diffBytes += end - addr;
         if (runStart < 0) {
           runStart = addr;
         }
@@ -65,6 +86,7 @@ export function diffImages(a: MemoryImage, b: MemoryImage, mergeGap = 16): DiffR
         raw.push({ start: runStart, end: addr });
         runStart = -1;
       }
+      addr = end;
     }
     if (runStart >= 0) {
       raw.push({ start: runStart, end: r.end });

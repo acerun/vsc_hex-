@@ -48,6 +48,58 @@ export function normalize(chunks: Segment[]): Segment[] {
   return out;
 }
 
+/**
+ * 解析时收集数据记录：地址紧接上一条的记录追加到同一缓冲区，
+ * 避免大文件产生上百万个小段（分配与 GC 开销远大于解析本身）。
+ */
+export class ChunkBuilder {
+  private readonly chunks: Segment[] = [];
+  private buf = new Uint8Array(4096);
+  private start = 0;
+  private len = 0;
+
+  add(address: number, data: Uint8Array) {
+    if (data.length === 0) {
+      return;
+    }
+    this.reserve(address, data.length);
+    this.buf.set(data, this.len);
+    this.len += data.length;
+  }
+
+  addByte(address: number, v: number) {
+    this.reserve(address, 1);
+    this.buf[this.len++] = v;
+  }
+
+  /** 排序合并后的段 */
+  finish(): Segment[] {
+    this.flush();
+    return normalize(this.chunks);
+  }
+
+  private reserve(address: number, n: number) {
+    if (this.len && address !== this.start + this.len) {
+      this.flush();
+    }
+    if (!this.len) {
+      this.start = address;
+    }
+    if (this.len + n > this.buf.length) {
+      const grown = new Uint8Array(Math.max(this.buf.length * 2, this.len + n));
+      grown.set(this.buf.subarray(0, this.len));
+      this.buf = grown;
+    }
+  }
+
+  private flush() {
+    if (this.len) {
+      this.chunks.push({ address: this.start, data: this.buf.slice(0, this.len) });
+      this.len = 0;
+    }
+  }
+}
+
 export function imageSize(img: MemoryImage): number {
   return img.segments.reduce((n, s) => n + s.data.length, 0);
 }
@@ -143,4 +195,42 @@ export function flatten(img: MemoryImage, fill: number): { base: number; data: U
 
 export function hex(n: number, width: number): string {
   return n.toString(16).toUpperCase().padStart(width, '0');
+}
+
+const HEX_CHARS = Uint8Array.from('0123456789ABCDEF', c => c.charCodeAt(0));
+
+/**
+ * 文本格式的写出缓冲：直接写 ASCII 字节，
+ * 避免大文件拼接上百万个字符串再 join / 编码（热退出备份每次编辑后都会整体写出）。
+ */
+export class AsciiWriter {
+  private buf = new Uint8Array(1 << 16);
+  private len = 0;
+
+  /** 一个字节的两位大写十六进制 */
+  hex(b: number) {
+    this.reserve(2);
+    this.buf[this.len++] = HEX_CHARS[b >> 4];
+    this.buf[this.len++] = HEX_CHARS[b & 15];
+  }
+
+  /** ASCII 文本 */
+  text(s: string) {
+    this.reserve(s.length);
+    for (let i = 0; i < s.length; i++) {
+      this.buf[this.len++] = s.charCodeAt(i);
+    }
+  }
+
+  finish(): Uint8Array {
+    return this.buf.slice(0, this.len);
+  }
+
+  private reserve(n: number) {
+    if (this.len + n > this.buf.length) {
+      const grown = new Uint8Array(Math.max(this.buf.length * 2, this.len + n));
+      grown.set(this.buf.subarray(0, this.len));
+      this.buf = grown;
+    }
+  }
 }

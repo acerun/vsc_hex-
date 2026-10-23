@@ -37,22 +37,23 @@ export interface CopyOptions {
 export function copyAs(format: CopyFormat, pieces: Segment[], opts: CopyOptions = {}): string {
   const bytes = concat(pieces);
   const name = opts.name ?? 'data';
-  const items = Array.from(bytes, b => '0x' + hex(b, 2));
+  // 只在 C / Go 格式时生成：大选区下为每个字节建字符串开销很大
+  const items = () => Array.from(bytes, b => '0x' + hex(b, 2));
   switch (format) {
     case 'displayed': return displayed(bytes, opts.unit ?? 1, opts.littleEndian ?? true);
     case 'hexOctets': return Array.from(bytes, b => hex(b, 2)).join(' ');
     case 'hex': return Array.from(bytes, b => hex(b, 2)).join('');
     case 'literal': return Array.from(bytes, b => '\\x' + b.toString(16).padStart(2, '0')).join('');
     case 'utf8': return new TextDecoder('utf-8').decode(bytes);
-    case 'c': return `unsigned char ${name}[${bytes.length}] = {${block(items, ' ')}};`;
-    case 'go': return `var ${name} = []byte{${block(items, '')}}`;
+    case 'c': return `unsigned char ${name}[${bytes.length}] = {${block(items(), ' ')}};`;
+    case 'go': return `var ${name} = []byte{${block(items(), '')}}`;
     // Java 的 byte 有符号，>0x7F 的字面量必须强转才能编译
     case 'java': return `byte ${name}[] = {${block(Array.from(bytes, b => (b > 0x7f ? '(byte) 0x' : '0x') + hex(b, 2)), ' ')}};`;
     case 'json': return '[' + Array.from(bytes).join(', ') + ']';
     case 'base64': return Buffer.from(bytes).toString('base64');
-    case 'ihex': return writeIhex(asImage(pieces));
-    case 'srec': return writeSrec(asImage(pieces));
-    case 'titxt': return writeTiTxt(asImage(pieces));
+    case 'ihex': return new TextDecoder().decode(writeIhex(asImage(pieces)));
+    case 'srec': return new TextDecoder().decode(writeSrec(asImage(pieces)));
+    case 'titxt': return new TextDecoder().decode(writeTiTxt(asImage(pieces)));
   }
 }
 

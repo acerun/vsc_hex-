@@ -37,6 +37,17 @@ test('Intel HEX：扩展段地址 (type 02)', () => {
   assert.equal(img.segments[0].address, 0x10000);
 });
 
+test('Intel HEX：连续记录合并为一段，乱序/重叠时后写覆盖先写', () => {
+  const rec = (addr: number, data: number[]) => {
+    const b = [data.length, addr >> 8, addr & 0xff, 0, ...data];
+    b.push((-b.reduce((x, y) => x + y, 0)) & 0xff);
+    return ':' + b.map(x => x.toString(16).toUpperCase().padStart(2, '0')).join('');
+  };
+  const img = parseIhex([rec(0x10, [1, 2]), rec(0x12, [3, 4]), rec(0, [9, 9]), rec(0x11, [7]), ':00000001FF'].join('\n'));
+  assert.deepEqual(img.warnings, []);
+  assert.deepEqual(img.segments.map(s => [s.address, [...s.data]]), [[0, [9, 9]], [0x10, [1, 7, 3, 4]]]);
+});
+
 test('S-Record：S3 数据 + S7 入口 + S0 头', () => {
   const img = parseSrec([
     'S00600004844521B',

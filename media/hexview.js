@@ -115,16 +115,17 @@
   }
   /** 地址所在（或其后第一个）行号 */
   function addrToRow(addr) {
-    for (let i = 0; i < S.runs.length; i++) {
-      const r = S.runs[i];
-      if (r.kind === 'rows') {
-        if (addr < r.addr) return S.runStart[i];
-        if (addr < r.addr + r.count * ROW) return S.runStart[i] + Math.floor((addr - r.addr) / ROW);
-      } else if (addr < r.to) {
-        return S.runStart[i];
-      }
+    // 二分找第一个结束地址 > addr 的 Run（Run 按地址升序；概览条会对每个差异块调用）
+    const runEnd = (r) => (r.kind === 'rows' ? r.addr + r.count * ROW : r.to);
+    let lo = 0, hi = S.runs.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (runEnd(S.runs[m]) <= addr) lo = m + 1; else hi = m;
     }
-    return Math.max(0, S.total - 1);
+    if (lo >= S.runs.length) return Math.max(0, S.total - 1);
+    const r = S.runs[lo];
+    if (r.kind === 'rows' && addr >= r.addr) return S.runStart[lo] + Math.floor((addr - r.addr) / ROW);
+    return S.runStart[lo];
   }
   function firstAddr() { const r = S.runs.find((x) => x.kind === 'rows'); return r ? r.addr : 0; }
   function lastAddr() {

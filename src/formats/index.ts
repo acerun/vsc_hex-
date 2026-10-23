@@ -42,7 +42,7 @@ export function parseImage(fileName: string, bytes: Uint8Array, format = detectF
     case 'srec': return parseSrec(latin1(bytes));
     case 'titxt': return parseTiTxt(latin1(bytes));
     case 'elf': return parseElf(bytes);
-    default: return { format: 'bin', segments: bytes.length ? [{ address: 0, data: bytes.slice() }] : [], warnings: [] };
+    default: return { format: 'bin', segments: bytes.length ? [{ address: 0, data: bytes }] : [], warnings: [] };
   }
 }
 
@@ -53,12 +53,11 @@ export interface SerializeOptions {
 }
 
 export function serializeImage(img: MemoryImage, format: FormatId, opts: SerializeOptions = {}): Uint8Array {
-  const enc = (s: string) => new TextEncoder().encode(s);
   const rl = opts.recordLength ?? 16;
   switch (format) {
-    case 'ihex': return enc(writeIhex(img, rl));
-    case 'srec': return enc(writeSrec(img, rl, opts.header ?? img.header ?? ''));
-    case 'titxt': return enc(writeTiTxt(img, rl));
+    case 'ihex': return writeIhex(img, rl);
+    case 'srec': return writeSrec(img, rl, opts.header ?? img.header ?? '');
+    case 'titxt': return writeTiTxt(img, rl);
     case 'elf': return writeElf(img);
     case 'bin': return flatten(img, opts.fillByte ?? 0xff).data;
   }
@@ -81,9 +80,5 @@ export function binExportNote(img: MemoryImage, fillByte: number): string | unde
 }
 
 function latin1(bytes: Uint8Array): string {
-  let s = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return s;
+  return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('latin1');
 }

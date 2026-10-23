@@ -48,6 +48,14 @@ test('diff：值不同与一侧缺失都算差异，近距离差异合并为一�
   assert.deepEqual(r.blocks, [{ start: 1, end: 4 }, { start: 0x100, end: 0x102 }]);
 });
 
+test('diff：两侧段边界交错时差异块跨边界连续', () => {
+  const a = img([0, [1, 2, 3, 4]], [6, [7, 8]]);
+  const b = img([2, [3, 0, 5, 6, 7, 8]]);
+  const r = diffImages(a, b, 1);
+  assert.equal(r.diffBytes, 5);
+  assert.deepEqual(r.blocks, [{ start: 0, end: 2 }, { start: 3, end: 6 }]);
+});
+
 test('diff：相同文件无差异', () => {
   const a = img([0, [1, 2, 3]]);
   const r = diffImages(a, img([0, [1, 2, 3]]));
