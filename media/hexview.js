@@ -109,6 +109,7 @@
   }
   /** 第 row 行：{kind:'rows', addr} 或 gap/fold 描述 */
   function rowInfo(row) {
+    if (S.runs.length === 0) return null; // 无任何行（如两文件完全相同时的"差异"视图）
     const i = runAt(row);
     const r = S.runs[i];
     return r.kind === 'rows' ? { kind: 'rows', addr: r.addr + (row - S.runStart[i]) * ROW } : r;
