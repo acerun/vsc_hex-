@@ -10,7 +10,6 @@ node_modules/**
 .vscode-test/**
 AGENTS.md
 TODO.md
-update-extension.ps1
 .gitignore
 *.vsix
 images/**

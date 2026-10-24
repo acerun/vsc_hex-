@@ -9,7 +9,6 @@ UI 参考：对比界面参考 Beyond Compare，查看界面参考 J-Flash。
 npm install
 npm test        # tsc 编译 + node --test 运行 out/test/*.test.js
 npm run package # 打包 vsix（含运行时依赖 @vscode/l10n；.vscodeignore 在 node_modules 中只放行它）
-./update-extension.ps1  # 编译 + 打包 + 安装到本机 VS Code
 ```
 
 F5（`.vscode/launch.json` 的 Run Hex++）启动扩展开发宿主，并打开 `Reference/` 作为测试目录，界面语言跟随当前 VS Code。
